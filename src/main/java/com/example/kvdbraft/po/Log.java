@@ -7,5 +7,4 @@ public class Log {
     private Long index;
     private Long term;
     private String command;
-
 }
