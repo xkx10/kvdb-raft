@@ -1,5 +1,6 @@
 package com.example.kvdbraft.config;
 
+
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
 import org.rocksdb.Options;
@@ -16,10 +17,13 @@ public class RocksDBConfig {
     private RocksDB rocksDB;
     @Value("${rocksdb.dbDir}")
     private String dbDir;
+    @Value("${dubbo.application.name}")
+    private String name;
 
 
     @PostConstruct
     public void init() {
+        dbDir = dbDir + name;
         RocksDB.loadLibrary();
         File file = new File(dbDir);
         if (!file.exists()) {
