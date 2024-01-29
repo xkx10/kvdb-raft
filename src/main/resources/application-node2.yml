@@ -1,0 +1,11 @@
+dubbo:
+    application:
+        name: node2
+    protocol:
+        port: 9012
+server:
+    port: 9002
+java:
+    add-opens:
+        java.base/java.lang: ALL-UNNAMED
+        java.base/java.math: ALL-UNNAMED

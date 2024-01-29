@@ -3,28 +3,24 @@ package com.example.kvdbraft.po;
 import com.example.kvdbraft.rpc.interfaces.ProviderService;
 import lombok.Data;
 import org.apache.dubbo.config.ReferenceConfig;
+import org.springframework.beans.factory.annotation.Value;
 
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
 @Data
 public class Cluster {
-    Set<String> clusterIds;
+    @Value("${cluster.nodes}")
+    private List<String> clusterIds;
 
 
     private static volatile Cluster instance;
 
 
     private Cluster(){
-
-        clusterIds = new HashSet<>();
-        clusterIds.add("dubbo://localhost:9011");
-        clusterIds.add("dubbo://localhost:9012");
-        clusterIds.add("dubbo://localhost:9013");
-//        clusterIds.add("dubbo://localhost:9013");
-//        clusterIds.add("dubbo://localhost:9014");
     };
     public static Cluster getInstance(){
         if(instance == null){
