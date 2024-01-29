@@ -12,5 +12,4 @@ public class ProviderServiceImpl implements ProviderService {
         System.out.println(requestVoteDTO);
         return Result.success(requestVoteDTO);
     }
-
 }

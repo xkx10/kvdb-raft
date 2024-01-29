@@ -1,6 +1,5 @@
 package com.example.kvdbraft.rpc.consumer;
 
-import com.example.kvdbraft.aop.CommonProcessingAspect;
 import com.example.kvdbraft.dto.RequestVoteDTO;
 import com.example.kvdbraft.rpc.interfaces.ConsumerService;
 import com.example.kvdbraft.rpc.interfaces.ProviderService;
@@ -62,5 +61,4 @@ public class ConsumerServiceImpl implements ConsumerService {
     private ProviderService getOrCreateReference(String url) {
         return rpcMap.computeIfAbsent(url, key -> createRpcReference(key, ProviderService.class));
     }
-
 }

@@ -20,6 +20,7 @@ public class PersistenceState {
     private List<Log> logs;
     @Autowired
     private RocksDB rocksDB;
+
     @PostConstruct
     public void init() {
         try {
@@ -36,6 +37,4 @@ public class PersistenceState {
             throw new RuntimeException(e);
         }
     }
-
-
 }

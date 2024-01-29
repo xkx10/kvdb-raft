@@ -9,6 +9,9 @@ import org.springframework.stereotype.Component;
 import java.util.List;
 import java.util.Set;
 
+/**
+ * 集群配置
+ */
 @Component
 @Data
 public class Cluster {

@@ -16,6 +16,7 @@ public class LeaderVolatileState {
     Cluster cluster;
     @Autowired
     VolatileState volatileState;
+
     @PostConstruct
     public void init() {
         // 在组件实例化后执行初始化逻辑

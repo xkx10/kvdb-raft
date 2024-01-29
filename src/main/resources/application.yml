@@ -9,3 +9,7 @@ rocksdb:
     dbDir: "./raft/db"
 cluster:
     nodes: dubbo://localhost:9011,dubbo://localhost:9012,dubbo://localhost:9013
+logging:
+  # 只有配置了日志文件，才能被监控收集
+  file:
+    name: logs/kvdb-raft.log

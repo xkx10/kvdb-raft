@@ -6,6 +6,7 @@ import com.example.kvdbraft.po.cache.LeaderVolatileState;
 import com.example.kvdbraft.po.cache.PersistenceState;
 import com.example.kvdbraft.rpc.consumer.ConsumerServiceImpl;
 import com.example.kvdbraft.vo.Result;
+import lombok.extern.slf4j.Slf4j;
 import org.rocksdb.RocksDBException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -23,16 +24,12 @@ public class MyApplication {
     @Autowired
     LeaderVolatileState leaderVolatileState;
 
-
     @RequestMapping("/")
     @ResponseBody
     Result home1() throws RocksDBException {
         System.out.println(persistenceState);
         System.out.println(cluster);
         System.out.println(leaderVolatileState);
-        return consumerService.sendElection("dubbo://localhost:9012",new RequestVoteDTO());
-
+        return consumerService.sendElection("dubbo://localhost:9012", new RequestVoteDTO());
     }
-
-
 }

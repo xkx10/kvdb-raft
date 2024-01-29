@@ -20,7 +20,6 @@ public class RocksDBConfig {
     @Value("${dubbo.application.name}")
     private String name;
 
-
     @PostConstruct
     public void init() {
         dbDir = dbDir + name;
