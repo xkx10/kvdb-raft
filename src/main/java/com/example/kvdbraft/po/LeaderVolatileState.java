@@ -15,7 +15,7 @@ public class LeaderVolatileState {
     private LeaderVolatileState(){
         nextIndexMap = new HashMap<>();
         matchIndex = new HashMap<>();
-        for (String clusterId : Cluster.getInstance().clusterIds) {
+        for (String clusterId : Cluster.getInstance().getClusterIds()) {
             nextIndexMap.put(clusterId, volatileState.getCommitIndex() + 1);
             matchIndex.put(clusterId, volatileState.getCommitIndex());
         }
