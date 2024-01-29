@@ -8,7 +8,4 @@ dubbo:
 rocksdb:
     dbDir: "./raft/db"
 cluster:
-    nodes:
-        - dubbo://localhost:9011
-        - dubbo://localhost:9011
-        - dubbo://localhost:9011
+    nodes: dubbo://localhost:9011,dubbo://localhost:9012,dubbo://localhost:9013
