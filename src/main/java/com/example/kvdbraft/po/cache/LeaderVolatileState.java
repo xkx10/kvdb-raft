@@ -10,8 +10,8 @@ import java.util.Map;
 @Component
 @Data
 public class LeaderVolatileState {
-    private Map<String,Long> nextIndexMap;
-    private Map<String,Long> matchIndex;
+    private Map<String,Integer> nextIndexMap;
+    private Map<String,Integer> matchIndex;
     @Autowired
     Cluster cluster;
     @Autowired

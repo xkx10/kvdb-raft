@@ -15,7 +15,7 @@ import java.util.List;
 @Component
 @Data
 public class PersistenceState {
-    private Integer currentTerm;
+    private Long currentTerm;
     private String votedFor;
     private List<Log> logs;
     @Autowired
@@ -26,7 +26,7 @@ public class PersistenceState {
         try {
             byte[] persistenceStateBytes = rocksDB.get("PersistenceState".getBytes());
             if(persistenceStateBytes == null){
-                currentTerm = 0;
+                currentTerm = 0L;
                 votedFor = null;
                 logs = new ArrayList<>();
                 return;

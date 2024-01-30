@@ -1,12 +1,10 @@
 package com.example.kvdbraft.po.cache;
 
-import jakarta.annotation.PostConstruct;
 import lombok.Data;
-import org.checkerframework.checker.units.qual.C;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
-import java.util.List;
+import java.util.HashSet;
 import java.util.Set;
 
 /**
@@ -17,6 +15,15 @@ import java.util.Set;
 public class Cluster {
 
     @Value("${cluster.nodes}")
-    private List<String> clusterIds;
+    private Set<String> clusterIds;
+
+    @Value("${cluster.my-address}")
+    private String Id;
+
+    public Set<String> getNoMyselfClusterIds(){
+        Set<String> noMyselfClusterIds = new HashSet<>(clusterIds);
+        noMyselfClusterIds.remove(Id);
+        return noMyselfClusterIds;
+    }
 
 }

@@ -19,3 +19,5 @@ logging:
     #    可单独配置模块日志级别
     #    level:
     #        com.example.kvdbraft: error
+cluster:
+    my-address: dubbo://localhost:9013
