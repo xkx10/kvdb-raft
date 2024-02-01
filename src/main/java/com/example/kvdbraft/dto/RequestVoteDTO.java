@@ -11,6 +11,8 @@ import java.io.Serializable;
 public class RequestVoteDTO implements Serializable{
     private Long term;
     private String candidateId;
+    // 最后一个提交日志index
     private Integer lastLogIndex;
+    // 最后一个提交日志任期
     private Long lastLogTerm;
 }

@@ -12,6 +12,11 @@ import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
 import java.util.List;
+
+/**
+ * RocksDB持久化节点配置
+ *
+ */
 @Component
 @Data
 public class PersistenceState {

@@ -8,6 +8,7 @@ import com.example.kvdbraft.po.cache.PersistenceState;
 import com.example.kvdbraft.rpc.consumer.ConsumerServiceImpl;
 import com.example.kvdbraft.service.ElectionService;
 import com.example.kvdbraft.vo.Result;
+import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
 import org.rocksdb.RocksDBException;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -18,15 +19,15 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @Slf4j
 public class MyApplication {
-    @Autowired
+    @Resource
     ConsumerServiceImpl consumerService;
-    @Autowired
+    @Resource
     Cluster cluster;
-    @Autowired
+    @Resource
     PersistenceState persistenceState;
-    @Autowired
+    @Resource
     LeaderVolatileState leaderVolatileState;
-    @Autowired
+    @Resource
     ElectionService electionService;
 
 

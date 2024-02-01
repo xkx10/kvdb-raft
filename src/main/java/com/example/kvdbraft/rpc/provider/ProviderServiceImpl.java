@@ -8,6 +8,7 @@ import com.example.kvdbraft.po.cache.PersistenceState;
 import com.example.kvdbraft.po.cache.VolatileState;
 import com.example.kvdbraft.rpc.interfaces.ProviderService;
 import com.example.kvdbraft.vo.Result;
+import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.dubbo.config.annotation.DubboService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -18,14 +19,15 @@ import java.util.concurrent.locks.ReentrantLock;
 @Slf4j
 public class ProviderServiceImpl implements ProviderService {
     public final ReentrantLock voteLock = new ReentrantLock();
-    @Autowired
+    @Resource
     PersistenceState persistenceState;
-    @Autowired
+    @Resource
     VolatileState volatileState;
-    @Autowired
+    @Resource
     Cluster cluster;
+
     @Override
-    public Result handlerElection(RequestVoteDTO requestVoteDTO) {
+    public Result<Object> handlerElection(RequestVoteDTO requestVoteDTO) {
         try {
             if(!voteLock.tryLock()){
                 return Result.failure("获取voteLock锁失败");

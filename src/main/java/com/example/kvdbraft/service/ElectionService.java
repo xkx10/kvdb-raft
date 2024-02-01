@@ -14,6 +14,4 @@ public interface ElectionService {
 
     RequestVoteResponseDTO acceptElection(RequestVoteDTO requestVoteDTO);
 
-
-
 }

@@ -7,6 +7,9 @@ import lombok.NoArgsConstructor;
 
 import java.io.Serializable;
 
+/**
+ * 选举回应
+ */
 @Data
 public class RequestVoteResponseDTO implements Serializable{
     private Long term;

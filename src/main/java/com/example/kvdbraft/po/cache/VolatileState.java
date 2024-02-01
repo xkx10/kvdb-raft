@@ -15,11 +15,12 @@ import org.springframework.stereotype.Component;
 public class VolatileState {
     private Integer commitIndex;
     private Integer lastApplied;
-
+    // 身份标识
     private Integer status;
     private String leaderId;
     @Autowired
     private RocksDB rocksDB;
+
     @PostConstruct
     public void init() {
         try {

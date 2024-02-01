@@ -11,4 +11,7 @@ public interface ProviderService {
      */
     Result handlerElection(RequestVoteDTO requestVoteDTO);
 
+    /**
+     * TODO:发送心跳
+     */
 }

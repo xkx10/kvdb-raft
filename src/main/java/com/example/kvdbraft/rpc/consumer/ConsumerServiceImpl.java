@@ -13,14 +13,15 @@ import java.util.concurrent.ConcurrentHashMap;
 
 @Service
 public class ConsumerServiceImpl implements ConsumerService {
-    private Map<String, ProviderService> rpcMap = new ConcurrentHashMap<>();
+    private final Map<String, ProviderService> rpcMap = new ConcurrentHashMap<>();
 
-    private String rpcVersion = "1.0";
+    private static final String rpcVersion = "1.0";
 
     @Override
     public Result sendElection(String url, RequestVoteDTO requestVoteDTO) {
         try {
             ProviderService providerService = getOrCreateReference(url);
+            // 开启远程调用
             return providerService.handlerElection(requestVoteDTO);
         } catch (RpcException rpcException) {
             // RPC连接创建后发送请求出现异常（一般情况是对面机器宕机了）
@@ -41,6 +42,7 @@ public class ConsumerServiceImpl implements ConsumerService {
     private  <T> T createRpcReference(String url, Class<T> interfaceClass) {
         T rpcService = null;
         try {
+            // ReferenceConfigCache会在内部进行连接配置缓存
             ReferenceConfig<T> referenceConfig = new ReferenceConfig<>();
             referenceConfig.setInterface(interfaceClass);
             referenceConfig.setUrl(url);
@@ -48,7 +50,6 @@ public class ConsumerServiceImpl implements ConsumerService {
             rpcService = referenceConfig.get();
         } catch (Exception e) {
             System.err.println("创建 RPC 引用时发生异常：" + e.getMessage());
-
         }
         return rpcService;
     }

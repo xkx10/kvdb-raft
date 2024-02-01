@@ -25,9 +25,11 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+
 @Service
 @Slf4j
 public class ElectionServiceImpl implements ElectionService {
+    // 缓存线程池处理选举过程中的短期任务时可能是合适的
     ExecutorService electionExecutor = Executors.newCachedThreadPool();
     @Autowired
     private PersistenceState persistenceState;
@@ -43,25 +45,29 @@ public class ElectionServiceImpl implements ElectionService {
     public boolean startElection() {
         log.info("id = {} 发起超时选举投票，可能即将成为新的leader。cluster = {}", cluster.getId(), cluster.getClusterIds());
         checkSecurity();
-        Map<String,Future<RequestVoteResponseDTO>> futureMap = new HashMap<>();
+        Map<String, Future<RequestVoteResponseDTO>> futureMap = new HashMap<>();
+        //循环除自身外其他节点rpc地址
         for (String clusterId : cluster.getNoMyselfClusterIds()) {
             RequestVoteDTO requestVoteDTO = new RequestVoteDTO();
             requestVoteDTO.setCandidateId(cluster.getId());
             requestVoteDTO.setTerm(persistenceState.getCurrentTerm());
 
-            if(volatileState.getCommitIndex() != -1){
+            if (volatileState.getCommitIndex() != -1) {
                 Log lastLog = persistenceState.getLogs().get(volatileState.getCommitIndex());
                 requestVoteDTO.setLastLogIndex(lastLog.getIndex());
                 requestVoteDTO.setLastLogTerm(lastLog.getTerm());
             }
 
             Future<RequestVoteResponseDTO> future = electionExecutor.submit(() -> sendElection(clusterId, requestVoteDTO));
+            // 记录每个节点发回来的回应
             futureMap.put(clusterId, future);
         }
         AtomicInteger success = new AtomicInteger(1);
+        // 同步器
         CountDownLatch latch = new CountDownLatch(futureMap.size());
         for (String id : futureMap.keySet()) {
             Future<RequestVoteResponseDTO> future = futureMap.get(id);
+            // 开多个线程去统计成功的数量
             electionExecutor.submit(() -> {
                 try {
                     RequestVoteResponseDTO requestVoteResponseDTO = future.get(3, TimeUnit.SECONDS);
@@ -71,11 +77,13 @@ public class ElectionServiceImpl implements ElectionService {
                 } catch (Exception e) {
                     log.error("error, message = 拉票RPC超时, id = {}", id, e);
                 } finally {
+                    //  每次调用这个方法，计数器的值就会减一。当计数器的值减到零时，所有因为调用 await() 方法而在等待的线程都会被唤醒
                     latch.countDown();
                 }
             });
         }
         try {
+            // 等待三秒同步
             latch.await(3, TimeUnit.SECONDS);
         } catch (InterruptedException e) {
             throw new RuntimeException(e);
@@ -87,7 +95,6 @@ public class ElectionServiceImpl implements ElectionService {
         doSuccessElection();
         log.info("vote success, id = {} 成为leader, 获得投票数 = {}", cluster.getId(), success.get());
         return true;
-
     }
 
     @Override
@@ -99,8 +106,6 @@ public class ElectionServiceImpl implements ElectionService {
         return (RequestVoteResponseDTO) consumerService.sendElection(clusterId, requestVoteDTO).getData();
     }
 
-    ;
-
     private void doSuccessElection() {
         volatileState.setStatus(EStatus.Leader.status);
         // todo 发起空日志写入 用于同步follow节点的日志信息
@@ -108,6 +113,4 @@ public class ElectionServiceImpl implements ElectionService {
 
     private void checkSecurity() {
     }
-
-    ;
 }

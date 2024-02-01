@@ -11,4 +11,8 @@ public interface ConsumerService {
      * @return
      */
     Result sendElection(String url, RequestVoteDTO requestVoteDTO);
+
+    /**
+     * TODO:接收心跳
+     */
 }

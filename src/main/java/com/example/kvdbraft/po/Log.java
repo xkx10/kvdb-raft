@@ -11,6 +11,7 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class Log {
     private Integer index;
+    // 日志所在任期
     private Long term;
     private String command;
 }
