@@ -13,6 +13,7 @@ import org.springframework.stereotype.Component;
 @Component
 @Data
 public class VolatileState {
+    // 已经提交到logs中的最大下标
     private Integer commitIndex;
     private Integer lastApplied;
     // 身份标识

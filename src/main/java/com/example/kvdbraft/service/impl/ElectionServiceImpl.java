@@ -109,6 +109,7 @@ public class ElectionServiceImpl implements ElectionService {
     private void doSuccessElection() {
         volatileState.setStatus(EStatus.Leader.status);
         // todo 发起空日志写入 用于同步follow节点的日志信息
+        // TODO: 开启心跳任务，每秒执行一次
     }
 
     private void checkSecurity() {

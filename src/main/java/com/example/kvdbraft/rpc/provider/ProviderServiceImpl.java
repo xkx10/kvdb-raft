@@ -1,5 +1,7 @@
 package com.example.kvdbraft.rpc.provider;
 
+import com.example.kvdbraft.dto.AppendEntriesDTO;
+import com.example.kvdbraft.dto.AppendEntriesResponseDTO;
 import com.example.kvdbraft.dto.RequestVoteDTO;
 import com.example.kvdbraft.dto.RequestVoteResponseDTO;
 import com.example.kvdbraft.enums.EStatus;
@@ -13,6 +15,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.dubbo.config.annotation.DubboService;
 import org.springframework.beans.factory.annotation.Autowired;
 
+import java.util.List;
+import java.util.concurrent.Future;
 import java.util.concurrent.locks.ReentrantLock;
 
 @DubboService(version = "1.0")
@@ -27,12 +31,13 @@ public class ProviderServiceImpl implements ProviderService {
     Cluster cluster;
 
     @Override
-    public Result<Object> handlerElection(RequestVoteDTO requestVoteDTO) {
+    public Result<RequestVoteResponseDTO> handlerElection(RequestVoteDTO requestVoteDTO) {
         try {
             if(!voteLock.tryLock()){
                 return Result.failure("获取voteLock锁失败");
             }
             // todo 安全性校验
+            // 接收到投票请求就将自己的票投的节点
             volatileState.setStatus(EStatus.Leader.status);
             volatileState.setLeaderId(requestVoteDTO.getCandidateId());
             persistenceState.setCurrentTerm(requestVoteDTO.getTerm());
@@ -48,5 +53,16 @@ public class ProviderServiceImpl implements ProviderService {
         }finally {
             voteLock.unlock();
         }
+    }
+
+    @Override
+    public AppendEntriesResponseDTO handlerHeart(AppendEntriesDTO heartDTO) {
+        // TODO: 处理心跳任务
+        return null;
+    }
+
+    @Override
+    public AppendEntriesResponseDTO appendEntries(AppendEntriesDTO EntriesDTO) {
+        return null;
     }
 }

@@ -20,10 +20,13 @@ public class Cluster {
     @Value("${cluster.my-address}")
     private String Id;
 
+    /**
+     * 获取除自己节点以外的id
+     * @return 节点列表
+     */
     public Set<String> getNoMyselfClusterIds(){
         Set<String> noMyselfClusterIds = new HashSet<>(clusterIds);
         noMyselfClusterIds.remove(Id);
         return noMyselfClusterIds;
     }
-
 }

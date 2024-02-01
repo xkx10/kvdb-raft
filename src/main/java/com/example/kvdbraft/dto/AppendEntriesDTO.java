@@ -15,8 +15,9 @@ import java.util.List;
 public class AppendEntriesDTO implements Serializable {
     private Long term;
     private String leaderId;
-    private Long prevLogIndex;
+    // 同步日志的时候使用，用于保证数据排列一致性
+    private Integer prevLogIndex;
     private Long prevLogTerm;
     List<Log> entries;
-    private Long leaderCommit;
+    private Integer leaderCommit;
 }
