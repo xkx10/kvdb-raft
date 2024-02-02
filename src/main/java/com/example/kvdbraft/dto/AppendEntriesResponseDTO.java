@@ -14,4 +14,16 @@ import java.io.Serializable;
 public class AppendEntriesResponseDTO implements Serializable {
     private Long term;
     private boolean success;
+
+    public AppendEntriesResponseDTO(boolean code){
+        this.success = code;
+    }
+
+    public static AppendEntriesResponseDTO fail() {
+        return new AppendEntriesResponseDTO(false);
+    }
+
+    public static AppendEntriesResponseDTO ok() {
+        return new AppendEntriesResponseDTO(true);
+    }
 }

@@ -6,6 +6,8 @@ import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.ComponentScan;
 
+import javax.annotation.PostConstruct;
+
 @SpringBootApplication
 @EnableDubbo
 public class KvdbRaftApplication {
@@ -14,4 +16,9 @@ public class KvdbRaftApplication {
 		SpringApplication.run(KvdbRaftApplication.class, args);
 	}
 
+	@PostConstruct
+	public void init() {
+		// 在这里执行初始化操作
+		System.out.println(111);
+	}
 }

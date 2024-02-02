@@ -31,7 +31,7 @@ import java.util.concurrent.Future;
 public class ConsumerServiceImpl implements ConsumerService {
     private final Map<String, ProviderService> rpcMap = new ConcurrentHashMap<>();
 
-    ExecutorService heartExecutor = Executors.newScheduledThreadPool(10);
+    ExecutorService heartExecutor = Executors.newScheduledThreadPool(5);
 
     private static final String rpcVersion = "1.0";
 
@@ -44,6 +44,8 @@ public class ConsumerServiceImpl implements ConsumerService {
     @Resource
     private PersistenceState persistenceState;
 
+    // 上次选举时间
+    public volatile long preElectionTime = 0;
 
     // 主节点独立掌权的最小时间 本项目去选举超时时间的2/3
     public volatile long leaseReadTime;
@@ -74,10 +76,10 @@ public class ConsumerServiceImpl implements ConsumerService {
     /**
      * 动态ip直连RPC 创建引用
      *
-     * @param url
-     * @param interfaceClass
-     * @param <T>
-     * @return
+     * @param url 调用地址
+     * @param interfaceClass 参数类型
+     * @param <T> 泛型
+     * @return 返回结果
      */
     private <T> T createRpcReference(String url, Class<T> interfaceClass) {
         T rpcService = null;
@@ -97,8 +99,8 @@ public class ConsumerServiceImpl implements ConsumerService {
     /**
      * 从缓存中获取对应的RPC Reference，或者创建Reference
      *
-     * @param url
-     * @return
+     * @param url 调用地址
+     * @return 放回结果
      */
     private ProviderService getOrCreateReference(String url) {
         return rpcMap.computeIfAbsent(url, key -> createRpcReference(key, ProviderService.class));
@@ -115,27 +117,7 @@ public class ConsumerServiceImpl implements ConsumerService {
         // 拿到其他节点的地址，除了自己的调用地址
         for (String peer : follows) {
             // 提交一个任务
-            sendHeart(peer);
-            // TODO:提交一个线程，heartExecutor
-//            futureArrayList.add(RaftThreadPool.submit(() -> {
-//                try {
-//                    // 将心跳通过rpc发送给跟随者节点
-//                    AentryResult aentryResult = getRpcClient().send(request);
-//                    long term = aentryResult.getTerm();
-//                    if (term > currentTerm) {
-//                        log.error("self will become follower, he's term : {}, my term : {}", term, currentTerm);
-//                        currentTerm = term;
-//                        votedFor = null;
-//                        status = NodeStatus.FOLLOWER;
-//                        preElectionTime = System.currentTimeMillis();
-//                        return false;
-//                    }
-//                    return true;
-//                } catch (Exception e) {
-//                    log.error("HeartBeatTask RPC Fail, request URL : {} ", request.getUrl());
-//                    return false;
-//                }
-//            }));
+            futureArrayList.add(heartExecutor.submit(()-> sendHeart(peer)));
         }
         return futureArrayList;
     }

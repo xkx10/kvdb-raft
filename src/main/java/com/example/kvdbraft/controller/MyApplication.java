@@ -35,9 +35,9 @@ public class MyApplication {
     @ResponseBody
     Result home1() throws RocksDBException {
         log.info("data = {}", persistenceState);
+        //  初始化所有状态
         electionService.startElection();
         return Result.success("111");
-
     }
 
 

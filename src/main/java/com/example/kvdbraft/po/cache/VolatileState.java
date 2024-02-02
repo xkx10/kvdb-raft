@@ -16,6 +16,7 @@ public class VolatileState {
     // 已经提交到logs中的最大下标
     private Integer commitIndex;
     private Integer lastApplied;
+    private Integer lastIndex;
     // 身份标识
     private Integer status;
     private String leaderId;
@@ -26,9 +27,10 @@ public class VolatileState {
     public void init() {
         try {
             byte[] volatileStates = rocksDB.get("VolatileState".getBytes());
-            if(volatileStates == null){
+            if (volatileStates == null) {
                 commitIndex = -1;
                 lastApplied = -1;
+                lastIndex = -1;
                 return;
             }
             VolatileState volatileState = JSON.parseObject(volatileStates, VolatileState.class);
