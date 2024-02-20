@@ -10,12 +10,13 @@ import com.example.kvdbraft.po.cache.PersistenceState;
 import com.example.kvdbraft.po.cache.VolatileState;
 import com.example.kvdbraft.rpc.interfaces.ProviderService;
 import com.example.kvdbraft.service.HeartbeatService;
+import com.example.kvdbraft.service.ElectionService;
 import com.example.kvdbraft.vo.Result;
-import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.dubbo.config.annotation.DubboService;
 import org.springframework.beans.factory.annotation.Autowired;
 
+import javax.annotation.Resource;
 import java.util.List;
 import java.util.concurrent.Future;
 import java.util.concurrent.locks.ReentrantLock;
@@ -33,6 +34,9 @@ public class ProviderServiceImpl implements ProviderService {
 
     @Resource
     private HeartbeatService heartbeatService;
+    @Resource
+    ElectionService electionService;
+    public final ReentrantLock heartLock = new ReentrantLock();
 
     @Override
     public Result<RequestVoteResponseDTO> handlerElection(RequestVoteDTO requestVoteDTO) {

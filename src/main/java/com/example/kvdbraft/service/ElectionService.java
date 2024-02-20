@@ -12,6 +12,11 @@ public interface ElectionService {
      */
     boolean startElection();
 
+    /**
+     * 接收选举投票请求
+     * @param requestVoteDTO 请求投票DTO
+     * @return 处理请求投票放回的DTO
+     */
     RequestVoteResponseDTO acceptElection(RequestVoteDTO requestVoteDTO);
 
 }
