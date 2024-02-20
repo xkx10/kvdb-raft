@@ -8,6 +8,7 @@ import java.util.List;
 import java.util.concurrent.Future;
 
 public interface ConsumerService {
+
     /**
      * 发送超时选举RPC
      * @param url 请求rpc地址
