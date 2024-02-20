@@ -9,12 +9,13 @@ import com.example.kvdbraft.po.cache.Cluster;
 import com.example.kvdbraft.po.cache.PersistenceState;
 import com.example.kvdbraft.po.cache.VolatileState;
 import com.example.kvdbraft.rpc.interfaces.ProviderService;
+import com.example.kvdbraft.service.ElectionService;
 import com.example.kvdbraft.vo.Result;
-import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.dubbo.config.annotation.DubboService;
 import org.springframework.beans.factory.annotation.Autowired;
 
+import javax.annotation.Resource;
 import java.util.List;
 import java.util.concurrent.Future;
 import java.util.concurrent.locks.ReentrantLock;
@@ -29,24 +30,17 @@ public class ProviderServiceImpl implements ProviderService {
     VolatileState volatileState;
     @Resource
     Cluster cluster;
+    @Resource
+    ElectionService electionService;
     public final ReentrantLock heartLock = new ReentrantLock();
 
     @Override
     public Result<RequestVoteResponseDTO> handlerElection(RequestVoteDTO requestVoteDTO) {
+        if (!voteLock.tryLock()) {
+            return Result.failure("获取voteLock锁失败");
+        }
         try {
-            if (!voteLock.tryLock()) {
-                return Result.failure("获取voteLock锁失败");
-            }
-            // todo 安全性校验
-            // 接收到投票请求就将自己的票投的节点
-            volatileState.setStatus(EStatus.Leader.status);
-            volatileState.setLeaderId(requestVoteDTO.getCandidateId());
-            persistenceState.setCurrentTerm(requestVoteDTO.getTerm());
-            persistenceState.setVotedFor(requestVoteDTO.getCandidateId());
-            RequestVoteResponseDTO requestVoteResponseDTO = new RequestVoteResponseDTO();
-            requestVoteResponseDTO.setVoteGranted(true);
-            requestVoteResponseDTO.setTerm(requestVoteDTO.getTerm());
-            log.info("vote success {} -> {}", cluster.getId(), requestVoteDTO.getCandidateId());
+            RequestVoteResponseDTO requestVoteResponseDTO = electionService.acceptElection(requestVoteDTO);
             return Result.success(requestVoteResponseDTO);
         } catch (Exception e) {
             log.error("接收投票选举异常,requestVoteDTO = {}", requestVoteDTO, e);
