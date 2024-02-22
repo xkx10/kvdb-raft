@@ -99,7 +99,7 @@ public class ProviderServiceImpl implements ProviderService {
     }
 
     @Override
-    public AppendEntriesResponseDTO appendEntries(AppendEntriesDTO EntriesDTO) {
+    public AppendEntriesResponseDTO appendEntries(AppendEntriesDTO entriesDTO) {
         return null;
     }
 }

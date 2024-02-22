@@ -2,6 +2,7 @@ package com.example.kvdbraft.po.cache;
 
 import com.alibaba.fastjson.JSON;
 import com.example.kvdbraft.po.Log;
+import com.example.kvdbraft.po.Log.LogBuilder;
 import com.example.kvdbraft.service.RocksService;
 import jakarta.annotation.PostConstruct;
 import lombok.Data;
@@ -36,6 +37,8 @@ public class PersistenceState {
                 currentTerm = 0L;
                 votedFor = null;
                 logs = new ArrayList<>();
+                Log log = Log.builder().index(0).term(-1L).build();
+                logs.add(log);
                 return;
             }
             BeanUtils.copyProperties(persistenceState, this);

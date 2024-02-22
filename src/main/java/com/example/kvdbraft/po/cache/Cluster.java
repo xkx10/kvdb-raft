@@ -18,7 +18,7 @@ public class Cluster {
     private Set<String> clusterIds;
 
     @Value("${cluster.my-address}")
-    private String Id;
+    private String id;
 
     /**
      * 获取除自己节点以外的id
@@ -26,7 +26,7 @@ public class Cluster {
      */
     public Set<String> getNoMyselfClusterIds(){
         Set<String> noMyselfClusterIds = new HashSet<>(clusterIds);
-        noMyselfClusterIds.remove(Id);
+        noMyselfClusterIds.remove(id);
         return noMyselfClusterIds;
     }
 }
