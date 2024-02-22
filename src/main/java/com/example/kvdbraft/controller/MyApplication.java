@@ -1,5 +1,6 @@
 package com.example.kvdbraft.controller;
 
+import com.example.kvdbraft.dto.RequestVoteDTO;
 import com.example.kvdbraft.po.cache.Cluster;
 import com.example.kvdbraft.po.cache.LeaderVolatileState;
 import com.example.kvdbraft.po.cache.PersistenceState;

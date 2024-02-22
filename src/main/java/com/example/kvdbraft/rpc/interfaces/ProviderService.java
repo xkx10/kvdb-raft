@@ -20,15 +20,17 @@ public interface ProviderService {
 
     /**
      * 接收心跳RPC
-     * @param heartDTO
+     *
+     * @param heartDTO 请求心跳体
      * @return 从节点接收结果集合
      */
     Result<AppendEntriesResponseDTO> handlerHeart(AppendEntriesDTO heartDTO);
 
     /**
      * 跟随节点日志复制RPC
-     * @param EntriesDTO
+     *
+     * @param entriesDTO 请求日志体
      * @return 从节点接收结果集合
      */
-    Result<AppendEntriesResponseDTO> appendEntries(AppendEntriesDTO EntriesDTO);
+    Result<AppendEntriesResponseDTO> appendEntries(AppendEntriesDTO entriesDTO);
 }

@@ -17,5 +17,21 @@ public interface ConsumerService {
      */
     Result<RequestVoteResponseDTO> sendElection(String url, RequestVoteDTO requestVoteDTO);
 
+    /**
+     * 发送心跳PRC
+     *
+     * @param url              请求rpc地址
+     * @param appendEntriesDTO 请求体
+     * @return 请求结果
+     */
     Result<AppendEntriesResponseDTO> sendHeart(String url, AppendEntriesDTO appendEntriesDTO);
+
+    /**
+     * 发送日志PRC
+     *
+     * @param url              请求rpc地址
+     * @param appendEntriesDTO 请求体
+     * @return 请求结果
+     */
+    Result<AppendEntriesResponseDTO> sendLog(String url, AppendEntriesDTO appendEntriesDTO);
 }

@@ -44,4 +44,16 @@ public class ConsumerServiceImpl implements ConsumerService {
             return Result.failure("发生未知错误：" + e.getMessage());
         }
     }
+
+    @Override
+    public Result<AppendEntriesResponseDTO> sendLog(String url, AppendEntriesDTO appendEntriesDTO) {
+        try {
+            ProviderService providerService = ReferenceFactory.getOrCreateReference(url);
+            return providerService.appendEntries(appendEntriesDTO);
+        } catch (RpcException rpcException) {
+            return Result.failure("RPC请求失败：" + rpcException.getMessage());
+        } catch (Exception e) {
+            return Result.failure("发生未知错误：" + e.getMessage());
+        }
+    }
 }
