@@ -33,7 +33,7 @@ public class ConsumerServiceImpl implements ConsumerService {
 
     ExecutorService heartExecutor = Executors.newScheduledThreadPool(5);
 
-    private static final String rpcVersion = "1.0";
+    private static final String RPC_VERSION = "1.0";
 
     @Resource
     private VolatileState volatileState;
@@ -88,7 +88,7 @@ public class ConsumerServiceImpl implements ConsumerService {
             ReferenceConfig<T> referenceConfig = new ReferenceConfig<>();
             referenceConfig.setInterface(interfaceClass);
             referenceConfig.setUrl(url);
-            referenceConfig.setVersion(rpcVersion);
+            referenceConfig.setVersion(RPC_VERSION);
             rpcService = referenceConfig.get();
         } catch (Exception e) {
             System.err.println("创建 RPC 引用时发生异常：" + e.getMessage());
