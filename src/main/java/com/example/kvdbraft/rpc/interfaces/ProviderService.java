@@ -6,9 +6,6 @@ import com.example.kvdbraft.dto.RequestVoteDTO;
 import com.example.kvdbraft.dto.RequestVoteResponseDTO;
 import com.example.kvdbraft.vo.Result;
 
-import java.util.List;
-import java.util.concurrent.Future;
-
 public interface ProviderService {
     /**
      * 接收超时选举RPC

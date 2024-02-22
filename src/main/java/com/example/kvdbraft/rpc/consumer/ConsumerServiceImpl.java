@@ -36,10 +36,12 @@ public class ConsumerServiceImpl implements ConsumerService {
     @Override
     public Result<AppendEntriesResponseDTO> sendHeart(String url, AppendEntriesDTO appendEntriesDTO) {
         try {
-            ProviderService providerService = ReferenceFactory.getOrCreateReference(url);
-            return providerService.handlerHeart(appendEntriesDTO);
-        } catch (RpcException rpcException) {
-            return Result.failure("RPC请求失败：" + rpcException.getMessage());
+            // ReferenceConfigCache会在内部进行连接配置缓存
+            ReferenceConfig<T> referenceConfig = new ReferenceConfig<>();
+            referenceConfig.setInterface(interfaceClass);
+            referenceConfig.setUrl(url);
+            referenceConfig.setVersion(RPC_VERSION);
+            rpcService = referenceConfig.get();
         } catch (Exception e) {
             return Result.failure("发生未知错误：" + e.getMessage());
         }

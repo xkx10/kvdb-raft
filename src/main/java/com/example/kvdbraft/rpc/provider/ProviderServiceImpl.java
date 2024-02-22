@@ -39,24 +39,17 @@ public class ProviderServiceImpl implements ProviderService {
     private AppendEntriesService appendEntriesService;
     @Resource
     ElectionService electionService;
+    @Resource
+    ElectionService electionService;
     public final ReentrantLock heartLock = new ReentrantLock();
 
     @Override
     public Result<RequestVoteResponseDTO> handlerElection(RequestVoteDTO requestVoteDTO) {
+        if (!voteLock.tryLock()) {
+            return Result.failure("获取voteLock锁失败");
+        }
         try {
-            if (!voteLock.tryLock()) {
-                return Result.failure("获取voteLock锁失败");
-            }
-            // todo 安全性校验
-            // 接收到投票请求就将自己的票投的节点
-            volatileState.setStatus(EStatus.Leader.status);
-            volatileState.setLeaderId(requestVoteDTO.getCandidateId());
-            persistenceState.setCurrentTerm(requestVoteDTO.getTerm());
-            persistenceState.setVotedFor(requestVoteDTO.getCandidateId());
-            RequestVoteResponseDTO requestVoteResponseDTO = new RequestVoteResponseDTO();
-            requestVoteResponseDTO.setVoteGranted(true);
-            requestVoteResponseDTO.setTerm(requestVoteDTO.getTerm());
-            log.info("vote success {} -> {}", cluster.getId(), requestVoteDTO.getCandidateId());
+            RequestVoteResponseDTO requestVoteResponseDTO = electionService.acceptElection(requestVoteDTO);
             return Result.success(requestVoteResponseDTO);
         } catch (Exception e) {
             log.error("接收投票选举异常,requestVoteDTO = {}", requestVoteDTO, e);
