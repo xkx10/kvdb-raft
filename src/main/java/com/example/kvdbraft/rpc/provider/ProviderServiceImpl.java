@@ -9,6 +9,7 @@ import com.example.kvdbraft.po.cache.Cluster;
 import com.example.kvdbraft.po.cache.PersistenceState;
 import com.example.kvdbraft.po.cache.VolatileState;
 import com.example.kvdbraft.rpc.interfaces.ProviderService;
+import com.example.kvdbraft.service.AppendEntriesService;
 import com.example.kvdbraft.service.HeartbeatService;
 import com.example.kvdbraft.service.ElectionService;
 import com.example.kvdbraft.vo.Result;
@@ -35,6 +36,8 @@ public class ProviderServiceImpl implements ProviderService {
     @Resource
     private HeartbeatService heartbeatService;
     @Resource
+    private AppendEntriesService appendEntriesService;
+    @Resource
     ElectionService electionService;
     public final ReentrantLock heartLock = new ReentrantLock();
 
@@ -60,7 +63,7 @@ public class ProviderServiceImpl implements ProviderService {
     }
 
     @Override
-    public Result<AppendEntriesResponseDTO> appendEntries(AppendEntriesDTO EntriesDTO) {
-        return null;
+    public Result<AppendEntriesResponseDTO> appendEntries(AppendEntriesDTO entriesDTO) {
+        return Result.success(appendEntriesService.appendEntries(entriesDTO));
     }
 }

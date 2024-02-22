@@ -8,6 +8,7 @@ import com.example.kvdbraft.po.cache.Cluster;
 import com.example.kvdbraft.po.cache.PersistenceState;
 import com.example.kvdbraft.po.cache.VolatileState;
 import com.example.kvdbraft.rpc.factory.ReferenceFactory;
+import com.example.kvdbraft.rpc.interfaces.ConsumerService;
 import com.example.kvdbraft.rpc.interfaces.ProviderService;
 import com.example.kvdbraft.service.HeartbeatService;
 import jakarta.annotation.Resource;
@@ -43,6 +44,9 @@ public class HeartbeatServiceImpl implements HeartbeatService {
     @Resource
     private NodeConfigField nodeConfigField;
 
+    @Resource
+    private ConsumerService consumerService;
+
     private final ReentrantLock heartLock = new ReentrantLock();
 
     @Override
@@ -58,13 +62,12 @@ public class HeartbeatServiceImpl implements HeartbeatService {
             // 提交一个任务
             futureArrayList.add(heartExecutor.submit(() -> sendHeart(peer)));
         }
+        nodeConfigField.setLastShortLeaseTerm(System.currentTimeMillis());
         return futureArrayList;
     }
 
     private boolean sendHeart(String url) {
         try {
-            ProviderService providerService = ReferenceFactory.getOrCreateReference(url);
-            nodeConfigField.setLastShortLeaseTerm(System.currentTimeMillis());
             // 心跳只关心 term 和 leaderID
             AppendEntriesDTO heartDTO = AppendEntriesDTO.builder()
                     .entries(null)
@@ -73,7 +76,7 @@ public class HeartbeatServiceImpl implements HeartbeatService {
                     // 记录自己的CommitIndex，如果是leader，则为leaderCommit
                     .leaderCommit(volatileState.getCommitIndex())
                     .build();
-            AppendEntriesResponseDTO heartResult = providerService.handlerHeart(heartDTO).getData();
+            AppendEntriesResponseDTO heartResult = consumerService.sendHeart(url, heartDTO).getData();
             long term = heartResult.getTerm();
             if (term > persistenceState.getCurrentTerm()) {
                 log.error("self will become follower, he's term : {}, my term : {}", term, persistenceState.getCurrentTerm());
@@ -127,7 +130,7 @@ public class HeartbeatServiceImpl implements HeartbeatService {
                 volatileState.setLastApplied(commitIndex);
             }
             while (nextCommit <= volatileState.getCommitIndex()) {
-                // 提交之前的日志，并提交到状态机
+                // TODO:提交之前的日志，并提交到状态机
                 // node.getStateMachine().apply(node.getLogModule().read(nextCommit));
                 nextCommit++;
             }

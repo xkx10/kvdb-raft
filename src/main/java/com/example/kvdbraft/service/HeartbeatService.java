@@ -19,5 +19,10 @@ public interface HeartbeatService {
     List<Future<Boolean>> heartNotJudgeResult();
 
 
+    /**
+     * 处理心跳
+     * @param heartDTO 心跳体
+     * @return 返回
+     */
     AppendEntriesResponseDTO handlerHeart(AppendEntriesDTO heartDTO);
 }
