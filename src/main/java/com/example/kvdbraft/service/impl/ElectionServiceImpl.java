@@ -12,12 +12,10 @@ import com.example.kvdbraft.po.cache.VolatileState;
 import com.example.kvdbraft.rpc.interfaces.ConsumerService;
 import com.example.kvdbraft.service.ElectionService;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import java.util.ArrayList;
+import javax.annotation.Resource;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
@@ -25,20 +23,22 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.locks.ReentrantLock;
 
 @Service
 @Slf4j
 public class ElectionServiceImpl implements ElectionService {
     // 缓存线程池处理选举过程中的短期任务时可能是合适的
     ExecutorService electionExecutor = Executors.newCachedThreadPool();
-    @Autowired
+    @Resource
     private PersistenceState persistenceState;
-    @Autowired
+    @Resource
     private VolatileState volatileState;
-    @Autowired
+    @Resource
     private Cluster cluster;
-    @Autowired
+    @Resource
     ConsumerService consumerService;
+    public final ReentrantLock voteLock = new ReentrantLock();
 
 
     @Override
@@ -84,7 +84,10 @@ public class ElectionServiceImpl implements ElectionService {
         }
         try {
             // 等待三秒同步
-            latch.await(3, TimeUnit.SECONDS);
+            boolean await = latch.await(3, TimeUnit.SECONDS);
+            if (!await){
+                log.info("存在一个或多个节点连接超时");
+            }
         } catch (InterruptedException e) {
             throw new RuntimeException(e);
         }
@@ -92,6 +95,8 @@ public class ElectionServiceImpl implements ElectionService {
             log.info("vote fail, id = {} 未能成为leader, 获得投票数 = {}", cluster.getId(), success.get());
             return false;
         }
+
+
         doSuccessElection();
         log.info("vote success, id = {} 成为leader, 获得投票数 = {}", cluster.getId(), success.get());
         return true;
@@ -99,11 +104,21 @@ public class ElectionServiceImpl implements ElectionService {
 
     @Override
     public RequestVoteResponseDTO acceptElection(RequestVoteDTO requestVoteDTO) {
-        return null;
+        // todo 安全性校验
+        // 接收到投票请求就将自己的票投的节点
+        volatileState.setStatus(EStatus.Leader.status);
+        volatileState.setLeaderId(requestVoteDTO.getCandidateId());
+        persistenceState.setCurrentTerm(requestVoteDTO.getTerm());
+        persistenceState.setVotedFor(requestVoteDTO.getCandidateId());
+        RequestVoteResponseDTO requestVoteResponseDTO = new RequestVoteResponseDTO();
+        requestVoteResponseDTO.setVoteGranted(true);
+        requestVoteResponseDTO.setTerm(requestVoteDTO.getTerm());
+        log.info("vote success {} -> {}", cluster.getId(), requestVoteDTO.getCandidateId());
+        return requestVoteResponseDTO;
     }
 
     private RequestVoteResponseDTO sendElection(String clusterId, RequestVoteDTO requestVoteDTO) {
-        return (RequestVoteResponseDTO) consumerService.sendElection(clusterId, requestVoteDTO).getData();
+        return consumerService.sendElection(clusterId, requestVoteDTO).getData();
     }
 
     private void doSuccessElection() {

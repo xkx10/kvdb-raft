@@ -5,6 +5,7 @@ import lombok.Data;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
+import javax.annotation.Resource;
 import java.util.HashMap;
 import java.util.Map;
 @Component
@@ -12,9 +13,9 @@ import java.util.Map;
 public class LeaderVolatileState {
     private Map<String,Integer> nextIndexMap;
     private Map<String,Integer> matchIndex;
-    @Autowired
+    @Resource
     Cluster cluster;
-    @Autowired
+    @Resource
     VolatileState volatileState;
 
     @PostConstruct

@@ -7,13 +7,14 @@ import lombok.NoArgsConstructor;
 
 import java.io.Serializable;
 
+
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
 public class AppendEntriesResponseDTO implements Serializable {
     private Long term;
-    private boolean success;
+    private Boolean success;
 
     public AppendEntriesResponseDTO(boolean code){
         this.success = code;

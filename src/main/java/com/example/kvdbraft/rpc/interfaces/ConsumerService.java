@@ -7,6 +7,7 @@ import com.example.kvdbraft.vo.Result;
 import com.example.kvdbraft.dto.AppendEntriesResponseDTO;
 
 public interface ConsumerService {
+
     /**
      * 发送超时选举RPC
      *
