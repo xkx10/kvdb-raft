@@ -27,21 +27,11 @@ import java.util.concurrent.locks.ReentrantLock;
 public class ProviderServiceImpl implements ProviderService {
     public final ReentrantLock voteLock = new ReentrantLock();
     @Resource
-    PersistenceState persistenceState;
-    @Resource
-    VolatileState volatileState;
-    @Resource
-    Cluster cluster;
-
-    @Resource
     private HeartbeatService heartbeatService;
     @Resource
     private AppendEntriesService appendEntriesService;
     @Resource
     ElectionService electionService;
-    @Resource
-    ElectionService electionService;
-    public final ReentrantLock heartLock = new ReentrantLock();
 
     @Override
     public Result<RequestVoteResponseDTO> handlerElection(RequestVoteDTO requestVoteDTO) {

@@ -20,7 +20,6 @@ public class ConsumerServiceImpl implements ConsumerService {
     @Override
     public Result<RequestVoteResponseDTO> sendElection(String url, RequestVoteDTO requestVoteDTO) {
         try {
-            // TODO：测试一下
             ProviderService providerService = ReferenceFactory.getOrCreateReference(url);
             // 开启远程调用
             return providerService.handlerElection(requestVoteDTO);
@@ -36,12 +35,8 @@ public class ConsumerServiceImpl implements ConsumerService {
     @Override
     public Result<AppendEntriesResponseDTO> sendHeart(String url, AppendEntriesDTO appendEntriesDTO) {
         try {
-            // ReferenceConfigCache会在内部进行连接配置缓存
-            ReferenceConfig<T> referenceConfig = new ReferenceConfig<>();
-            referenceConfig.setInterface(interfaceClass);
-            referenceConfig.setUrl(url);
-            referenceConfig.setVersion(RPC_VERSION);
-            rpcService = referenceConfig.get();
+            ProviderService providerService = ReferenceFactory.getOrCreateReference(url);
+            return providerService.handlerHeart(appendEntriesDTO);
         } catch (Exception e) {
             return Result.failure("发生未知错误：" + e.getMessage());
         }

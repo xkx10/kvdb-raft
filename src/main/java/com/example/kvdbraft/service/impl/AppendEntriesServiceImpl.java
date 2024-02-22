@@ -90,23 +90,11 @@ public class AppendEntriesServiceImpl implements AppendEntriesService {
                     .leaderCommit(volatileState.getCommitIndex())
                     .build();
             AppendEntriesResponseDTO logResult = consumerService.sendLog(url, logDTO).getData();
-            // 检查日志同步结果
-//            long term = logResult.getTerm();
-//            if (term > persistenceState.getCurrentTerm()) {
-//                log.error("self will become follower, he's term : {}, my term : {}", term, persistenceState.getCurrentTerm());
-//                persistenceState.setCurrentTerm(term);
-//                persistenceState.setVotedFor(null);
-//                volatileState.setStatus(EStatus.Follower.status);
-//                // 刷新上次选举时间
-//                // preElectionTime = System.currentTimeMillis();
-//                return false;
-//            }
-
+            return logResult.getSuccess();
         } catch (Exception e) {
             log.error("HeartBeatTask RPC Fail, request URL : {} ", url);
             return false;
         }
-        return true;
     }
 
     @Override
