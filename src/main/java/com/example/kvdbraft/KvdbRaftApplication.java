@@ -15,10 +15,4 @@ public class KvdbRaftApplication {
 	public static void main(String[] args) {
 		SpringApplication.run(KvdbRaftApplication.class, args);
 	}
-
-	@PostConstruct
-	public void init() {
-		// 在这里执行初始化操作
-		System.out.println(111);
-	}
 }

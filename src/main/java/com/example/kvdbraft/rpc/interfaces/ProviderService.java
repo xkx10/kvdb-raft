@@ -23,12 +23,12 @@ public interface ProviderService {
      *
      * @return 从节点接收结果集合
      */
-    AppendEntriesResponseDTO handlerHeart(AppendEntriesDTO heartDTO);
+    Result<AppendEntriesResponseDTO> handlerHeart(AppendEntriesDTO heartDTO);
 
     /**
      * 跟随节点日志复制RPC
      *
      * @return 从节点接收结果集合
      */
-    AppendEntriesResponseDTO appendEntries(AppendEntriesDTO EntriesDTO);
+    Result<AppendEntriesResponseDTO> appendEntries(AppendEntriesDTO EntriesDTO);
 }
