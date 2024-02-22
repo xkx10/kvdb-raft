@@ -6,6 +6,7 @@ import com.example.kvdbraft.po.cache.PersistenceState;
 import com.example.kvdbraft.rpc.consumer.ConsumerServiceImpl;
 import com.example.kvdbraft.service.ElectionService;
 import com.example.kvdbraft.service.HeartbeatService;
+import com.example.kvdbraft.service.SecurityCheckService;
 import com.example.kvdbraft.vo.Result;
 import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
@@ -34,13 +35,20 @@ public class MyApplication {
     @Resource
     private HeartbeatService heartbeatService;
 
+    @Resource
+    SecurityCheckService service;
 
     @RequestMapping("/")
     @ResponseBody
     Result home1() throws RocksDBException {
         log.info("data = {}", persistenceState);
-        //  初始化所有状态
-        electionService.startElection();
+
+        RequestVoteDTO requestVoteDTO = new RequestVoteDTO();
+        requestVoteDTO.setTerm(-2L);
+        requestVoteDTO.setLastLogIndex(1);
+        requestVoteDTO.setLastLogTerm(1L);
+        service.voteSecurityCheck(requestVoteDTO);
+
         return Result.success("111");
     }
 
