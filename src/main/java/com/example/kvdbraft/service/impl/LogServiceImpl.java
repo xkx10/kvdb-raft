@@ -70,6 +70,11 @@ public class LogServiceImpl implements LogService {
         }
     }
 
+    @Override
+    public Log getLastLog() {
+        return persistenceState.getLogs().get(getLastIndex());
+    }
+
     private Integer getLastIndex() {
         return persistenceState.getLogs().size() - 1;
     }
