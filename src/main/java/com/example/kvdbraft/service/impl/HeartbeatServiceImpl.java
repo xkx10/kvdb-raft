@@ -11,6 +11,7 @@ import com.example.kvdbraft.rpc.factory.ReferenceFactory;
 import com.example.kvdbraft.rpc.interfaces.ConsumerService;
 import com.example.kvdbraft.rpc.interfaces.ProviderService;
 import com.example.kvdbraft.service.HeartbeatService;
+import com.example.kvdbraft.service.TriggerService;
 import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -46,11 +47,14 @@ public class HeartbeatServiceImpl implements HeartbeatService {
 
     @Resource
     private ConsumerService consumerService;
+    @Resource
+    private TriggerService triggerService;
 
     private final ReentrantLock heartLock = new ReentrantLock();
 
     @Override
     public List<Future<Boolean>> heartNotJudgeResult() {
+        log.info("staring send heart, cluster = {}", cluster);
         // 发送给所有节点心跳，所有节点处理心跳后返回
         if (volatileState.getStatus() != EStatus.Leader.status) {
             return null;
@@ -83,8 +87,9 @@ public class HeartbeatServiceImpl implements HeartbeatService {
                 persistenceState.setCurrentTerm(term);
                 persistenceState.setVotedFor(null);
                 volatileState.setStatus(EStatus.Follower.status);
-                // 刷新上次选举时间
-                // preElectionTime = System.currentTimeMillis();
+                // 开始超时选举任务，停止心跳任务
+                triggerService.startHeartTask();
+                triggerService.stopHeartTask();
                 return false;
             }
         } catch (Exception e) {
@@ -96,6 +101,7 @@ public class HeartbeatServiceImpl implements HeartbeatService {
 
     @Override
     public AppendEntriesResponseDTO handlerHeart(AppendEntriesDTO heartDTO) {
+        log.info("accept heart AppendEntriesDTO = {}", heartDTO);
         AppendEntriesResponseDTO result = AppendEntriesResponseDTO.fail();
         if (!heartLock.tryLock()) {
             log.info("heartLock锁获取失败");
@@ -108,9 +114,9 @@ public class HeartbeatServiceImpl implements HeartbeatService {
                 return AppendEntriesResponseDTO.builder()
                         .term(currentTerm).success(false).build();
             }
-            // TODO：刷新选举时间和心跳时间，看是否需要
-            // node.setPreElectionTime(System.currentTimeMillis());
-            // node.setPreHeartBeatTime(System.currentTimeMillis());
+            // 更新超时选举时间
+            triggerService.updateElectionTaskTime();
+            triggerService.stopHeartTask();
             // 设置当前节点的leader地址
             volatileState.setLeaderId(heartDTO.getLeaderId());
             volatileState.setStatus(EStatus.Follower.status);
