@@ -31,9 +31,9 @@ public class VolatileState {
         try {
             VolatileState volatileState = rocksService.read("VolatileState", VolatileState.class);
             if (volatileState == null) {
-                commitIndex = -1;
-                lastApplied = -1;
-                lastIndex = -1;
+                commitIndex = 0;
+                lastApplied = 0;
+                lastIndex = 0;
                 return;
             }
             BeanUtils.copyProperties(volatileState, this);

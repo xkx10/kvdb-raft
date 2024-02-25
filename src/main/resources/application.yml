@@ -14,10 +14,13 @@ cluster:
 node:
     config:
         field:
-            shortLeaseTerm: 15
-            heartbeatIntervalTime: 10
-            electionTimeout: 300
+            shortLeaseTerm: 150
+            heartbeatIntervalTime: 100
+            electionTimeout: 3000
 logging:
   # 只有配置了日志文件，才能被监控收集
   file:
     name: logs/kvdb-raft.log
+spring:
+  main:
+    allow-circular-references: true

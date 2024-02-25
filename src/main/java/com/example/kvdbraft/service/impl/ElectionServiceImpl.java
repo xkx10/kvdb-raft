@@ -11,11 +11,20 @@ import com.example.kvdbraft.po.cache.PersistenceState;
 import com.example.kvdbraft.po.cache.VolatileState;
 import com.example.kvdbraft.rpc.interfaces.ConsumerService;
 import com.example.kvdbraft.service.ElectionService;
+import com.example.kvdbraft.service.HeartbeatService;
+import com.example.kvdbraft.service.LogService;
+import com.example.kvdbraft.service.SecurityCheckService;
+import com.example.kvdbraft.service.TriggerService;
 import lombok.extern.slf4j.Slf4j;
+import lombok.val;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import javax.annotation.Resource;
+import javax.annotation.Resource;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
@@ -40,28 +49,37 @@ public class ElectionServiceImpl implements ElectionService {
     ConsumerService consumerService;
     public final ReentrantLock voteLock = new ReentrantLock();
 
-
+    @Resource
+    TriggerService triggerService;
+    @Resource
+    SecurityCheckService securityCheckService;
+    @Resource
+    LogService logService;
+    @Resource
+    HeartbeatService heartbeatService;
     @Override
     public boolean startElection() {
         log.info("id = {} 发起超时选举投票，可能即将成为新的leader。cluster = {}", cluster.getId(), cluster.getClusterIds());
-        checkSecurity();
+        // 设置身份为candidate
+        volatileState.setStatus(EStatus.Candidate.status);
+        // 自己任期 +1
+        persistenceState.increaseTerm();
+        // 开始超时选举拉票
         Map<String, Future<RequestVoteResponseDTO>> futureMap = new HashMap<>();
         //循环除自身外其他节点rpc地址
         for (String clusterId : cluster.getNoMyselfClusterIds()) {
             RequestVoteDTO requestVoteDTO = new RequestVoteDTO();
             requestVoteDTO.setCandidateId(cluster.getId());
             requestVoteDTO.setTerm(persistenceState.getCurrentTerm());
-
-            if (volatileState.getCommitIndex() != -1) {
-                Log lastLog = persistenceState.getLogs().get(volatileState.getCommitIndex());
-                requestVoteDTO.setLastLogIndex(lastLog.getIndex());
-                requestVoteDTO.setLastLogTerm(lastLog.getTerm());
-            }
+            Log lastLog = persistenceState.getLogs().get(volatileState.getCommitIndex());
+            requestVoteDTO.setLastLogIndex(lastLog.getIndex());
+            requestVoteDTO.setLastLogTerm(lastLog.getTerm());
 
             Future<RequestVoteResponseDTO> future = electionExecutor.submit(() -> sendElection(clusterId, requestVoteDTO));
             // 记录每个节点发回来的回应
             futureMap.put(clusterId, future);
         }
+        // 记录票数
         AtomicInteger success = new AtomicInteger(1);
         // 同步器
         CountDownLatch latch = new CountDownLatch(futureMap.size());
@@ -95,8 +113,14 @@ public class ElectionServiceImpl implements ElectionService {
             log.info("vote fail, id = {} 未能成为leader, 获得投票数 = {}", cluster.getId(), success.get());
             return false;
         }
-
-
+        // 这里做双重校验，防止选举成功但是集群已经出现新的leader做不必要的操作
+        // 比如： 我现在拉到一半以上的投票了，rpc正在网络中，这个时候有另外一个节点因为网络分区导致一段时间一直在选举，他的任期变的很高，
+        //       这个时候他的网络分区好了，他快速的拉到了新一轮的投票，不做判断这个时候会发生脑裂。
+        // 下面判断只能较大程度避免脑裂情况，但是即便发生脑裂，任期低的这个leader在集群并没有写入日志的能力，因为大半节点任期要比他高，所以对集群不会有影响
+        if(volatileState.getStatus() == EStatus.Follower.status){
+            log.info("集群中已经有了新的leader id = {}, my id = {} 未能成为leader", volatileState.getLeaderId(), cluster.getId());
+            return false;
+        }
         doSuccessElection();
         log.info("vote success, id = {} 成为leader, 获得投票数 = {}", cluster.getId(), success.get());
         return true;
@@ -104,9 +128,10 @@ public class ElectionServiceImpl implements ElectionService {
 
     @Override
     public RequestVoteResponseDTO acceptElection(RequestVoteDTO requestVoteDTO) {
-        // todo 安全性校验
+        // 安全性校验
+        securityCheckService.voteSecurityCheck(requestVoteDTO);
         // 接收到投票请求就将自己的票投的节点
-        volatileState.setStatus(EStatus.Leader.status);
+        volatileState.setStatus(EStatus.Follower.status);
         volatileState.setLeaderId(requestVoteDTO.getCandidateId());
         persistenceState.setCurrentTerm(requestVoteDTO.getTerm());
         persistenceState.setVotedFor(requestVoteDTO.getCandidateId());
@@ -123,10 +148,15 @@ public class ElectionServiceImpl implements ElectionService {
 
     private void doSuccessElection() {
         volatileState.setStatus(EStatus.Leader.status);
+        triggerService.stopElectionTask();
+        triggerService.startHeartTask();
+
+        heartbeatService.heartNotJudgeResult();
+
         // todo 发起空日志写入 用于同步follow节点的日志信息
         // TODO: 开启心跳任务，每秒执行一次
+
     }
 
-    private void checkSecurity() {
-    }
+
 }

@@ -48,4 +48,9 @@ public class PersistenceState {
             throw new RuntimeException(e);
         }
     }
+    public void increaseTerm(){
+        synchronized (PersistenceState.class){
+            currentTerm = currentTerm + 1;
+        }
+    }
 }
