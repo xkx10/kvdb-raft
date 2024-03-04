@@ -16,7 +16,7 @@ import javax.annotation.Resource;
 @Component
 @Data
 public class VolatileState {
-    // 已经提交到logs中的最大下标
+
     private Integer commitIndex;
     private Integer lastApplied;
     private Integer lastIndex;

@@ -18,4 +18,10 @@ public interface LogService {
      * @return
      */
     Log getLastLog();
+
+    /**
+     * 获取未被apply的logList
+     * @return
+     */
+    List<Log> getNoApplyLogList();
 }

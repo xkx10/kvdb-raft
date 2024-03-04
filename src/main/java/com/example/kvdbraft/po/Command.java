@@ -9,9 +9,7 @@ import lombok.NoArgsConstructor;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class Log {
-    private Integer index;
-    // 日志所在任期
-    private Long term;
-    private Command command;
+public class Command {
+    private String key;
+    private String value;
 }

@@ -8,6 +8,12 @@ server:
 spring:
     application:
         name: kvdb-raft-node3
+    data:
+        redis:
+            database: 1
+            host: 127.0.0.1
+            port: 6373
+            password: 123456
 java:
     add-opens:
         java.base/java.lang: ALL-UNNAMED
