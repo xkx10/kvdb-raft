@@ -1,8 +1,6 @@
 package com.example.kvdbraft.po.cache;
 
-import jakarta.annotation.PostConstruct;
 import lombok.Data;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import javax.annotation.Resource;
@@ -12,20 +10,19 @@ import java.util.Map;
 @Data
 public class LeaderVolatileState {
     private Map<String,Integer> nextIndexMap;
-    private Map<String,Integer> matchIndex;
+    private Map<String,Integer> matchIndexMap;
     @Resource
     Cluster cluster;
     @Resource
     VolatileState volatileState;
 
-    @PostConstruct
-    public void init() {
+    public void initMap() {
         // 在组件实例化后执行初始化逻辑
         nextIndexMap = new HashMap<>();
-        matchIndex = new HashMap<>();
+        matchIndexMap = new HashMap<>();
         for (String clusterId : cluster.getClusterIds()) {
             nextIndexMap.put(clusterId, volatileState.getCommitIndex() + 1);
-            matchIndex.put(clusterId, volatileState.getCommitIndex());
+            matchIndexMap.put(clusterId, volatileState.getCommitIndex());
         }
     }
 

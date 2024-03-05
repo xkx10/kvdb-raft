@@ -30,4 +30,10 @@ public interface ProviderService {
      * @return 从节点接收结果集合
      */
     Result<AppendEntriesResponseDTO> appendEntries(AppendEntriesDTO entriesDTO);
+
+    /**
+     * 写入主节点
+     * @param command redis命令
+     */
+    Result<Boolean> write(String command);
 }

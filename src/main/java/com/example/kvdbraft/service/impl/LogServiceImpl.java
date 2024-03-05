@@ -79,7 +79,7 @@ public class LogServiceImpl implements LogService {
     public List<Log> getNoApplyLogList() {
         Integer commitIndex = volatileState.getCommitIndex();
         Integer lastApplied = volatileState.getLastApplied();
-        List<Log> applyLogs = persistenceState.getLogs().subList(lastApplied + 1, commitIndex);
+        List<Log> applyLogs = persistenceState.getLogs().subList(lastApplied + 1, commitIndex + 1);
         return applyLogs;
     }
 
