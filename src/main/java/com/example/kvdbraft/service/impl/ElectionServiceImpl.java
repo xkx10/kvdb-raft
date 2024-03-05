@@ -7,6 +7,7 @@ import com.example.kvdbraft.enums.EStatus;
 import com.example.kvdbraft.po.Log;
 
 import com.example.kvdbraft.po.cache.Cluster;
+import com.example.kvdbraft.po.cache.LeaderVolatileState;
 import com.example.kvdbraft.po.cache.PersistenceState;
 import com.example.kvdbraft.po.cache.VolatileState;
 import com.example.kvdbraft.rpc.interfaces.ConsumerService;
@@ -16,15 +17,10 @@ import com.example.kvdbraft.service.LogService;
 import com.example.kvdbraft.service.SecurityCheckService;
 import com.example.kvdbraft.service.TriggerService;
 import lombok.extern.slf4j.Slf4j;
-import lombok.val;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import javax.annotation.Resource;
-import javax.annotation.Resource;
-import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
@@ -57,6 +53,8 @@ public class ElectionServiceImpl implements ElectionService {
     LogService logService;
     @Resource
     HeartbeatService heartbeatService;
+    @Resource
+    LeaderVolatileState leaderVolatileState;
     @Override
     public boolean startElection() {
         log.info("id = {} 发起超时选举投票，可能即将成为新的leader。cluster = {}", cluster.getId(), cluster.getClusterIds());
@@ -129,7 +127,16 @@ public class ElectionServiceImpl implements ElectionService {
     @Override
     public RequestVoteResponseDTO acceptElection(RequestVoteDTO requestVoteDTO) {
         // 安全性校验
-        securityCheckService.voteSecurityCheck(requestVoteDTO);
+        try {
+            securityCheckService.voteSecurityCheck(requestVoteDTO);
+        }catch (SecurityException e){
+            log.error("安全校验不通过, message = {}", e.getMessage());
+            return RequestVoteResponseDTO.builder()
+                    .voteGranted(false)
+                    .term(persistenceState.getCurrentTerm())
+                    .build();
+        }
+
         // 接收到投票请求就将自己的票投的节点
         volatileState.setStatus(EStatus.Follower.status);
         volatileState.setLeaderId(requestVoteDTO.getCandidateId());
@@ -152,7 +159,7 @@ public class ElectionServiceImpl implements ElectionService {
         triggerService.startHeartTask();
 
         heartbeatService.heartNotJudgeResult();
-
+        leaderVolatileState.initMap();
         // todo 发起空日志写入 用于同步follow节点的日志信息
         // TODO: 开启心跳任务，每秒执行一次
 

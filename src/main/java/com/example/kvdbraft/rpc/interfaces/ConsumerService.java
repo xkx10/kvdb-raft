@@ -34,4 +34,11 @@ public interface ConsumerService {
      * @return 请求结果
      */
     Result<AppendEntriesResponseDTO> sendLog(String url, AppendEntriesDTO appendEntriesDTO);
+
+    /**
+     * 调用主节点的写日志功能
+     * @param url 主节点地址
+     * @param command redis写命令
+     */
+    Result<Boolean> writeLeader(String url, String command);
 }

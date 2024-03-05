@@ -54,7 +54,7 @@ public class HeartbeatServiceImpl implements HeartbeatService {
 
     @Override
     public List<Future<Boolean>> heartNotJudgeResult() {
-        log.info("staring send heart, cluster = {}", cluster);
+        //log.info("staring send heart, cluster = {}", cluster);
         // 发送给所有节点心跳，所有节点处理心跳后返回
         if (volatileState.getStatus() != EStatus.Leader.status) {
             return null;
@@ -101,7 +101,7 @@ public class HeartbeatServiceImpl implements HeartbeatService {
 
     @Override
     public AppendEntriesResponseDTO handlerHeart(AppendEntriesDTO heartDTO) {
-        log.info("accept heart AppendEntriesDTO = {}", heartDTO);
+        //log.info("accept heart AppendEntriesDTO = {}", heartDTO);
         AppendEntriesResponseDTO result = AppendEntriesResponseDTO.fail();
         if (!heartLock.tryLock()) {
             log.info("heartLock锁获取失败");
@@ -123,8 +123,8 @@ public class HeartbeatServiceImpl implements HeartbeatService {
             persistenceState.setCurrentTerm(heartDTO.getTerm());
             persistenceState.setVotedFor(null);
             //心跳 只apply当前节点没写入状态机的日志
-            log.info("node {} append heartbeat success , he's term : {}, my term : {}",
-                    heartDTO.getLeaderId(), heartDTO.getTerm(), heartDTO.getTerm());
+//            log.info("node {} append heartbeat success , he's term : {}, my term : {}",
+//                    heartDTO.getLeaderId(), heartDTO.getTerm(), heartDTO.getTerm());
             // 下一个需要提交的日志的索引（如有）
             long nextCommit = volatileState.getCommitIndex() + 1;
             //如果 leaderCommit > commitIndex，令 commitIndex 等于 leaderCommit 和 新日志条目索引值中较小的一个

@@ -5,6 +5,7 @@ import com.example.kvdbraft.po.cache.Cluster;
 import com.example.kvdbraft.po.cache.LeaderVolatileState;
 import com.example.kvdbraft.po.cache.PersistenceState;
 import com.example.kvdbraft.rpc.consumer.ConsumerServiceImpl;
+import com.example.kvdbraft.service.ClientOperationService;
 import com.example.kvdbraft.service.ElectionService;
 import com.example.kvdbraft.service.HeartbeatService;
 import com.example.kvdbraft.service.SecurityCheckService;
@@ -35,6 +36,8 @@ public class MyApplication {
     ElectionService electionService;
     @Resource
     SecurityCheckService service;
+    @Resource
+    private ClientOperationService clientOperationService;
 
     @Resource
     private HeartbeatService heartbeatService;
@@ -44,8 +47,8 @@ public class MyApplication {
     @RequestMapping("/")
     @ResponseBody
     Result home1() throws RocksDBException {
-        redisClient.executeRedisCommand("SET name \"Hello\"");
-        return Result.success(redisClient.get("name"));
+        Boolean data = clientOperationService.execute("set name11 xkx11");
+        return Result.success(redisClient.get("name11"));
     }
 
     @RequestMapping("/heartNotJudgeResult")
@@ -56,4 +59,19 @@ public class MyApplication {
         List<Future<Boolean>> futures = heartbeatService.heartNotJudgeResult();
         return Result.success("111");
     }
+
+
+    @RequestMapping("/write")
+    @ResponseBody
+    Result<String> executeCommand(String command){
+        Boolean data = clientOperationService.execute(command);
+        return data? Result.success("111"):Result.failure("111");
+    }
+    @RequestMapping("/jmeter")
+    @ResponseBody
+    Result jmeter() throws RocksDBException {
+
+        return Result.success(redisClient.get("name"));
+    }
+
 }
