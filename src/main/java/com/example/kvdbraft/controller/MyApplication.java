@@ -9,6 +9,7 @@ import com.example.kvdbraft.service.ClientOperationService;
 import com.example.kvdbraft.service.ElectionService;
 import com.example.kvdbraft.service.HeartbeatService;
 import com.example.kvdbraft.service.SecurityCheckService;
+import com.example.kvdbraft.service.impl.client.handler.ReadStrategy;
 import com.example.kvdbraft.service.impl.redis.RedisClient;
 import com.example.kvdbraft.vo.Result;
 import jakarta.annotation.Resource;
@@ -44,11 +45,14 @@ public class MyApplication {
     @Resource
     RedisClient redisClient;
 
+    @Resource
+    ReadStrategy readStrategy;
     @RequestMapping("/")
     @ResponseBody
     Result home1() throws RocksDBException {
         Boolean data = clientOperationService.execute("set name11 xkx11");
-        return Result.success(redisClient.get("name11"));
+        if(!data) throw new RuntimeException();
+        return Result.success("ok");
     }
 
     @RequestMapping("/heartNotJudgeResult")
@@ -63,15 +67,22 @@ public class MyApplication {
 
     @RequestMapping("/write")
     @ResponseBody
-    Result<String> executeCommand(String command){
+    Result<String> write(String command){
         Boolean data = clientOperationService.execute(command);
-        return data? Result.success("111"):Result.failure("111");
+        return data? Result.success("success"):Result.failure("false");
+    }
+    @RequestMapping("/read")
+    @ResponseBody
+    Result<String> read(String command){
+        String data = readStrategy.execute(command);
+        return Result.success(data);
     }
     @RequestMapping("/jmeter")
     @ResponseBody
     Result jmeter() throws RocksDBException {
 
-        return Result.success(redisClient.get("name"));
+        String data = readStrategy.execute("get name11");
+        return Result.success(data);
     }
 
 }

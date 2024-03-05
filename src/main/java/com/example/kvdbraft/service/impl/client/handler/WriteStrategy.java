@@ -64,7 +64,12 @@ public class WriteStrategy implements OperationStrategy {
     @Override
     public Boolean execute(String command) {
 
-        if (!sendLogLock.tryLock()) {
+        try {
+            if (!sendLogLock.tryLock(1, TimeUnit.SECONDS)) {
+                log.info("appendLock锁获取失败");
+                return false;
+            }
+        } catch (InterruptedException e) {
             log.info("appendLock锁获取失败");
             return false;
         }
@@ -74,7 +79,7 @@ public class WriteStrategy implements OperationStrategy {
             if (volatileState.getStatus() != EStatus.Leader.status) {
                 return consumerService.writeLeader(volatileState.getLeaderId(), command).getData();
             }
-            log.info("staring write command = {}, volatileState = {}, persistenceState ={}", command, volatileState, persistenceState);
+           // log.info("staring write command = {}, volatileState = {}, persistenceState ={}", command, volatileState, persistenceState);
             // TODO:先假设command为set key value的形式
             String[] c = command.split(" ");
             Command cm = Command.builder()
