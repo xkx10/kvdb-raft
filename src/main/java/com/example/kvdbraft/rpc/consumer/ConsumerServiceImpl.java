@@ -45,7 +45,6 @@ public class ConsumerServiceImpl implements ConsumerService {
     @Override
     public Result<AppendEntriesResponseDTO> sendLog(String url, AppendEntriesDTO appendEntriesDTO) {
         try {
-            log.info("staring rpc sendLog url = {} appendEntriesDTO = {}",url,appendEntriesDTO);
             ProviderService providerService = ReferenceFactory.getOrCreateReference(url);
             return providerService.appendEntries(appendEntriesDTO);
         } catch (RpcException rpcException) {

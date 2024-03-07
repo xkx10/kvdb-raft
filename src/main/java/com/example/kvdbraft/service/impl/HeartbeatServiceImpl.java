@@ -11,6 +11,7 @@ import com.example.kvdbraft.rpc.factory.ReferenceFactory;
 import com.example.kvdbraft.rpc.interfaces.ConsumerService;
 import com.example.kvdbraft.rpc.interfaces.ProviderService;
 import com.example.kvdbraft.service.HeartbeatService;
+import com.example.kvdbraft.service.StateMachineService;
 import com.example.kvdbraft.service.TriggerService;
 import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
@@ -49,6 +50,8 @@ public class HeartbeatServiceImpl implements HeartbeatService {
     private ConsumerService consumerService;
     @Resource
     private TriggerService triggerService;
+    @Resource
+    private StateMachineService stateMachineService;
 
     private final ReentrantLock heartLock = new ReentrantLock();
 
@@ -88,7 +91,7 @@ public class HeartbeatServiceImpl implements HeartbeatService {
                 persistenceState.setVotedFor(null);
                 volatileState.setStatus(EStatus.Follower.status);
                 // 开始超时选举任务，停止心跳任务
-                triggerService.startHeartTask();
+                triggerService.startElectionTask();
                 triggerService.stopHeartTask();
                 return false;
             }
@@ -101,50 +104,31 @@ public class HeartbeatServiceImpl implements HeartbeatService {
 
     @Override
     public AppendEntriesResponseDTO handlerHeart(AppendEntriesDTO heartDTO) {
-        //log.info("accept heart AppendEntriesDTO = {}", heartDTO);
-        AppendEntriesResponseDTO result = AppendEntriesResponseDTO.fail();
-        if (!heartLock.tryLock()) {
-            log.info("heartLock锁获取失败");
-            return result;
+        long currentTerm = persistenceState.getCurrentTerm();
+        if (heartDTO.getTerm() < currentTerm) {
+            log.info("对方term小于自己");
+            return AppendEntriesResponseDTO.builder()
+                    .term(currentTerm).success(false).build();
         }
-        try {
-            long currentTerm = persistenceState.getCurrentTerm();
-            if (heartDTO.getTerm() < currentTerm) {
-                log.info("对方term小于自己");
-                return AppendEntriesResponseDTO.builder()
-                        .term(currentTerm).success(false).build();
-            }
-            // 更新超时选举时间
-            triggerService.updateElectionTaskTime();
-            triggerService.stopHeartTask();
-            // 设置当前节点的leader地址
-            volatileState.setLeaderId(heartDTO.getLeaderId());
-            volatileState.setStatus(EStatus.Follower.status);
-            persistenceState.setCurrentTerm(heartDTO.getTerm());
-            persistenceState.setVotedFor(null);
-            //心跳 只apply当前节点没写入状态机的日志
+        // 更新超时选举时间
+        triggerService.updateElectionTaskTime();
+        triggerService.stopHeartTask();
+        // 设置当前节点的leader地址
+        volatileState.setLeaderId(heartDTO.getLeaderId());
+        volatileState.setStatus(EStatus.Follower.status);
+        persistenceState.setCurrentTerm(heartDTO.getTerm());
+        persistenceState.setVotedFor(null);
+        //心跳 只apply当前节点没写入状态机的日志
 //            log.info("node {} append heartbeat success , he's term : {}, my term : {}",
 //                    heartDTO.getLeaderId(), heartDTO.getTerm(), heartDTO.getTerm());
-            // 下一个需要提交的日志的索引（如有）
-            long nextCommit = volatileState.getCommitIndex() + 1;
-            //如果 leaderCommit > commitIndex，令 commitIndex 等于 leaderCommit 和 新日志条目索引值中较小的一个
-            if (heartDTO.getLeaderCommit() > volatileState.getCommitIndex()) {
-                // 和日志集合最后一条记录比较，最后一条记录可能未提交
-                int commitIndex = Math.min(heartDTO.getLeaderCommit(), volatileState.getLastIndex());
-                volatileState.setCommitIndex(commitIndex);
-                // 更新应用到状态机的最小值，我觉得不应该在这里就是设置，应该应用完再加1
-                volatileState.setLastApplied(commitIndex);
-            }
-            while (nextCommit <= volatileState.getCommitIndex()) {
-                // TODO:提交之前的日志，并提交到状态机
-                // node.getStateMachine().apply(node.getLogModule().read(nextCommit));
-                nextCommit++;
-            }
-            return AppendEntriesResponseDTO.builder()
-                    .term(persistenceState.getCurrentTerm())
-                    .success(true).build();
-        } finally {
-            heartLock.unlock();
+        //如果 leaderCommit > commitIndex，令 commitIndex 等于 leaderCommit 和 新日志条目索引值中较小的一个
+        if (heartDTO.getLeaderCommit() > volatileState.getCommitIndex()) {
+            // 和日志集合最后一条记录比较，最后一条记录可能未提交
+            int commitIndex = Math.min(heartDTO.getLeaderCommit(), volatileState.getLastIndex());
+            volatileState.setCommitIndex(commitIndex);
         }
+        return AppendEntriesResponseDTO.builder()
+                .term(persistenceState.getCurrentTerm())
+                .success(true).build();
     }
 }
