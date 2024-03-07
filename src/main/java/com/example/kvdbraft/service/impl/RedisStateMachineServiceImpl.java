@@ -23,13 +23,15 @@ public class RedisStateMachineServiceImpl implements StateMachineService {
     VolatileState volatileState;
     @Override
     public void apply() {
-        synchronized (RedisStateMachineServiceImpl.class){
-            List<Log> applyLogList = logService.getNoApplyLogList();
-            log.info("applyLogList = {}", applyLogList);
-            for (Log log : applyLogList) {
-                redisClient.set(log.getCommand().getKey(), log.getCommand().getValue());
+        if(volatileState.getCommitIndex() > volatileState.getLastApplied()) {
+            synchronized (RedisStateMachineServiceImpl.class){
+                List<Log> applyLogList = logService.getNoApplyLogList();
+                log.info("applyLogList = {}", applyLogList);
+                for (Log log : applyLogList) {
+                    redisClient.set(log.getCommand().getKey(), log.getCommand().getValue());
+                }
+                volatileState.setLastApplied(volatileState.getLastApplied() + applyLogList.size());
             }
-            volatileState.setLastApplied(volatileState.getLastApplied() + applyLogList.size());
         }
     }
 

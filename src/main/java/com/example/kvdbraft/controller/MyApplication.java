@@ -25,45 +25,12 @@ import java.util.concurrent.Future;
 @RestController
 @Slf4j
 public class MyApplication {
-    @Resource
-    ConsumerServiceImpl consumerService;
-    @Resource
-    Cluster cluster;
-    @Resource
-    PersistenceState persistenceState;
-    @Resource
-    LeaderVolatileState leaderVolatileState;
-    @Resource
-    ElectionService electionService;
-    @Resource
-    SecurityCheckService service;
+
     @Resource
     private ClientOperationService clientOperationService;
 
     @Resource
-    private HeartbeatService heartbeatService;
-    @Resource
-    RedisClient redisClient;
-
-    @Resource
     ReadStrategy readStrategy;
-    @RequestMapping("/")
-    @ResponseBody
-    Result home1() throws RocksDBException {
-        Boolean data = clientOperationService.execute("set name11 xkx11");
-        if(!data) throw new RuntimeException();
-        return Result.success("ok");
-    }
-
-    @RequestMapping("/heartNotJudgeResult")
-    @ResponseBody
-    Result home2() throws RocksDBException {
-        log.info("data = {}", persistenceState);
-        //  初始化所有状态
-        List<Future<Boolean>> futures = heartbeatService.heartNotJudgeResult();
-        return Result.success("111");
-    }
-
 
     @RequestMapping("/write")
     @ResponseBody
@@ -77,12 +44,6 @@ public class MyApplication {
         String data = readStrategy.execute(command);
         return Result.success(data);
     }
-    @RequestMapping("/jmeter")
-    @ResponseBody
-    Result jmeter() throws RocksDBException {
 
-        String data = readStrategy.execute("get name11");
-        return Result.success(data);
-    }
 
 }

@@ -29,6 +29,7 @@ import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReentrantLock;
 
 /**
@@ -62,6 +63,8 @@ public class AppendEntriesServiceImpl implements AppendEntriesService {
     @Resource
     private RocksService rocksService;
 
+    private int oneRpcTimeOut = 1000;
+
     private final ReentrantLock logLock = new ReentrantLock();
 
     // 客户端调用发送日志时，如果失败，则nextIndex-1后重新调用该方法
@@ -71,6 +74,7 @@ public class AppendEntriesServiceImpl implements AppendEntriesService {
         if (volatileState.getStatus() != EStatus.Leader.status) {
             return null;
         }
+       
         Set<String> follows = cluster.getNoMyselfClusterIds();
         List<Future<Boolean>> futureArrayList = new ArrayList<>();
         // 拿到其他节点的地址，除了自己的调用地址
@@ -98,7 +102,6 @@ public class AppendEntriesServiceImpl implements AppendEntriesService {
                     // 记录自己的CommitIndex，如果是leader，则为leaderCommit
                     .leaderCommit(volatileState.getCommitIndex())
                     .build();
-            log.info("url = {}. logDTO = {}", url, logDTO);
             AppendEntriesResponseDTO logResult = consumerService.sendLog(url, logDTO).getData();
             // 同步失败则进行重试
             while (!logResult.getSuccess() && persistenceState.getCurrentTerm() >= logResult.getTerm()) {
@@ -131,27 +134,19 @@ public class AppendEntriesServiceImpl implements AppendEntriesService {
 
     @Override
     public AppendEntriesResponseDTO appendEntries(AppendEntriesDTO entriesDTO) {
-        // 日志应用
-        AppendEntriesResponseDTO result = AppendEntriesResponseDTO.fail();
-        long currentTerm = persistenceState.getCurrentTerm();
-        // 日志安全性校验
         try {
+            if (!logLock.tryLock(oneRpcTimeOut, TimeUnit.MILLISECONDS)) {
+                log.info("appendLock锁获取失败");
+                return AppendEntriesResponseDTO.fail();
+            }
+            long start = System.currentTimeMillis();
+            long currentTerm = persistenceState.getCurrentTerm();
             securityCheckService.logAppendSecurityCheck(entriesDTO);
-        } catch (SecurityException e) {
-            // 主节点下线
-            return AppendEntriesResponseDTO.builder()
-                    .term(currentTerm).success(false).build();
-        }
-        if (!logLock.tryLock()) {
-            log.info("appendLock锁获取失败");
-            return result;
-        }
-        try {
             volatileState.setLeaderId(entriesDTO.getLeaderId());
             volatileState.setStatus(EStatus.Follower.status);
             persistenceState.setCurrentTerm(entriesDTO.getTerm());
             persistenceState.setVotedFor(null);
-            // TODO: 确保preLog一致性，上一个没冲突继续
+            // 确保preLog一致性，上一个没冲突继续
             Log prelog = logService.getLastLog();
             if(!prelog.getIndex().equals(entriesDTO.getPrevLogIndex()) || !prelog.getTerm().equals(entriesDTO.getPrevLogTerm())){
                 return AppendEntriesResponseDTO.builder()
@@ -161,23 +156,24 @@ public class AppendEntriesServiceImpl implements AppendEntriesService {
             if (entriesDTO.getPrevLogIndex() + 1 < persistenceState.getLogs().size()) {
                 Log existLog = persistenceState.getLogs().get(entriesDTO.getPrevLogIndex() + 1);
                 if (existLog != null) {
-                    // 对比一下前面一条记录，如果相同则可以删
-                    // 删除这一条和之后所有的, 然后写入日志和更新原有rocks数据库，并更新lastIndex
+                    // 删除这一条和之后所有的,
                     logService.removeOnStartIndex(entriesDTO.getPrevLogIndex() + 1);
                 }
             }
             // 写日志
             logService.writeLog(entriesDTO.getEntries());
-            try {
-                rocksService.write("PersistenceState", persistenceState);
-                rocksService.write("VolatileState", volatileState);
-            } catch (Exception e) {
-                throw new RuntimeException(e);
-            }
+            volatileState.setLastIndex(volatileState.getLastIndex() + entriesDTO.getEntries().size());
+            log.info("接受日志成功，time = {}",System.currentTimeMillis() - start);
             return AppendEntriesResponseDTO.builder()
                     .term(currentTerm)
                     .success(true).build();
-        } finally {
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
+        } catch (SecurityException e) {
+            // 主节点下线
+            return AppendEntriesResponseDTO.builder()
+                    .term(persistenceState.getCurrentTerm()).success(false).build();
+        }finally {
             logLock.unlock();
         }
     }

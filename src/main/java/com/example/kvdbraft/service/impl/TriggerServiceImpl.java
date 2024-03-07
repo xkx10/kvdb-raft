@@ -1,6 +1,8 @@
 package com.example.kvdbraft.service.impl;
 
+import com.example.kvdbraft.enums.EStatus;
 import com.example.kvdbraft.po.NodeConfigField;
+import com.example.kvdbraft.po.cache.VolatileState;
 import com.example.kvdbraft.service.ElectionService;
 import com.example.kvdbraft.service.HeartbeatService;
 import com.example.kvdbraft.service.TriggerService;
@@ -32,26 +34,23 @@ public class TriggerServiceImpl implements TriggerService {
     ElectionService electionService;
     @Resource
     HeartbeatService heartbeatService;
+    @Resource
+    VolatileState volatileState;
 
     private ScheduledFuture<?> electionTaskFuture;
     private ScheduledFuture<?> heartTaskFuture;
 
+    private long electionDelayTime = 15*1000;
 
     @PostConstruct
-    public void init() {
-        startElectionTask();
+    public void init(){
+        startElectionTaskByTime(electionDelayTime);
     }
 
     @Override
     public void startElectionTask() {
         // 初始化超时选举任务
-        int randomTime = random.nextInt(randomTimeRange);
-        electionTaskFuture = electionTaskExecutor.schedule(() -> {
-            boolean b = electionService.startElection();
-            if(!b){
-                startElectionTask();
-            }
-        }, nodeConfigField.getElectionTimeout() + randomTime, TimeUnit.MILLISECONDS);
+        startElectionTaskByTime(nodeConfigField.getElectionTimeout());
 
     }
 
@@ -64,10 +63,12 @@ public class TriggerServiceImpl implements TriggerService {
 
     @Override
     public void updateElectionTaskTime() {
-        // 取消当前任务，但不中断正在执行的任务
-        stopElectionTask();
-        // 重新调度任务
-        startElectionTask();
+        synchronized (TriggerService.class){
+            // 取消当前任务，但不中断正在执行的任务
+            stopElectionTask();
+            // 重新调度任务
+            startElectionTask();
+        }
     }
 
     @Override
@@ -82,6 +83,17 @@ public class TriggerServiceImpl implements TriggerService {
         if (heartTaskFuture != null) {
             heartTaskFuture.cancel(false);
         }
+    }
+    public void startElectionTaskByTime(long time) {
+        // 初始化超时选举任务
+        int randomTime = random.nextInt(randomTimeRange);
+        electionTaskFuture = electionTaskExecutor.schedule(() -> {
+            boolean b = electionService.startElection();
+            if(!b){
+                startElectionTask();
+            }
+        }, time + randomTime, TimeUnit.MILLISECONDS);
+
     }
 
 }

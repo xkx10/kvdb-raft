@@ -48,6 +48,8 @@ public class WriteStrategy implements OperationStrategy {
     private StateMachineService stateMachineService;
     @Resource
     private RocksService rocksService;
+    private int oneRpcTimeOut = 1000;
+    private int sumRpcTimeOut = 1500;
 
     ExecutorService executor = Executors.newCachedThreadPool();
 
@@ -69,17 +71,10 @@ public class WriteStrategy implements OperationStrategy {
                 log.info("appendLock锁获取失败");
                 return false;
             }
-        } catch (InterruptedException e) {
-            log.info("appendLock锁获取失败");
-            return false;
-        }
-
-        try {
             // 如果不是主节点，则进行rpc调用主节点的写日志请求
             if (volatileState.getStatus() != EStatus.Leader.status) {
                 return consumerService.writeLeader(volatileState.getLeaderId(), command).getData();
             }
-           // log.info("staring write command = {}, volatileState = {}, persistenceState ={}", command, volatileState, persistenceState);
             // TODO:先假设command为set key value的形式
             String[] c = command.split(" ");
             Command cm = Command.builder()
@@ -93,13 +88,14 @@ public class WriteStrategy implements OperationStrategy {
                     .command(cm).build();
             persistenceState.getLogs().add(writeLog);
             volatileState.setLastIndex(lastIndex);
+            long start = System.currentTimeMillis();
             List<Future<Boolean>> futures = appendEntriesService.sendLogToFollow();
             AtomicInteger success = new AtomicInteger(1);
             CountDownLatch latch = new CountDownLatch(futures.size());
             for (Future<Boolean> future : futures) {
                 executor.submit(() -> {
                     try {
-                        Boolean res = future.get(3, TimeUnit.SECONDS);
+                        Boolean res = future.get(oneRpcTimeOut, TimeUnit.MILLISECONDS);
                         if (res) {
                             success.incrementAndGet();
                         }
@@ -111,14 +107,10 @@ public class WriteStrategy implements OperationStrategy {
                     }
                 });
             }
-            try {
-                // 等待三秒同步
-                boolean await = latch.await(3, TimeUnit.SECONDS);
-                if (!await) {
-                    log.error("存在一个或多个节点连接超时");
-                }
-            } catch (InterruptedException e) {
-                log.error("从节点日志异步同步错误");
+            // 等待三秒同步
+            boolean await = latch.await(sumRpcTimeOut, TimeUnit.MILLISECONDS);
+            if (!await) {
+                log.error("存在一个或多个节点连接超时");
             }
             if (success.get() * 2 <= cluster.getClusterIds().size()) {
                 // 回退日志和lastIndex
@@ -126,20 +118,16 @@ public class WriteStrategy implements OperationStrategy {
                 volatileState.setLastIndex(lastIndex - 1);
                 return false;
             }
+            long end = System.currentTimeMillis();
             // 写入成功了，更新commitIndex和应用到状态机，并且将状态进行持久化到rocks
             volatileState.setCommitIndex(lastIndex);
-            // TODO:放到一致性读那边
-            stateMachineService.apply();
+            log.info("日志写入成功 time = {} ", end - start);
 
-            log.info("日志写入成功");
-            try {
-                rocksService.write("PersistenceState", persistenceState);
-                rocksService.write("VolatileState", volatileState);
-            } catch (Exception e) {
-                throw new RuntimeException(e);
-            }
             return true;
-        }finally {
+        } catch (InterruptedException e) {
+            log.error("线程异常中断 message = {}", e.getMessage(), e);
+            return false;
+        } finally {
             sendLogLock.unlock();
         }
     }

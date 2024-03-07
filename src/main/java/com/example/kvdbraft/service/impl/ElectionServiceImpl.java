@@ -65,14 +65,13 @@ public class ElectionServiceImpl implements ElectionService {
         // 开始超时选举拉票
         Map<String, Future<RequestVoteResponseDTO>> futureMap = new HashMap<>();
         //循环除自身外其他节点rpc地址
+        RequestVoteDTO requestVoteDTO = new RequestVoteDTO();
+        requestVoteDTO.setCandidateId(cluster.getId());
+        requestVoteDTO.setTerm(persistenceState.getCurrentTerm());
+        Log lastLog = persistenceState.getLogs().get(volatileState.getLastIndex());
+        requestVoteDTO.setLastLogIndex(lastLog.getIndex());
+        requestVoteDTO.setLastLogTerm(lastLog.getTerm());
         for (String clusterId : cluster.getNoMyselfClusterIds()) {
-            RequestVoteDTO requestVoteDTO = new RequestVoteDTO();
-            requestVoteDTO.setCandidateId(cluster.getId());
-            requestVoteDTO.setTerm(persistenceState.getCurrentTerm());
-            Log lastLog = persistenceState.getLogs().get(volatileState.getCommitIndex());
-            requestVoteDTO.setLastLogIndex(lastLog.getIndex());
-            requestVoteDTO.setLastLogTerm(lastLog.getTerm());
-
             Future<RequestVoteResponseDTO> future = electionExecutor.submit(() -> sendElection(clusterId, requestVoteDTO));
             // 记录每个节点发回来的回应
             futureMap.put(clusterId, future);
@@ -105,7 +104,7 @@ public class ElectionServiceImpl implements ElectionService {
                 log.info("存在一个或多个节点连接超时");
             }
         } catch (InterruptedException e) {
-            throw new RuntimeException(e);
+            log.error("await选举rpc回应出现错误，message = {}", e.getMessage());
         }
         if (success.get() * 2 <= cluster.getClusterIds().size()) {
             log.info("vote fail, id = {} 未能成为leader, 获得投票数 = {}", cluster.getId(), success.get());
@@ -120,7 +119,7 @@ public class ElectionServiceImpl implements ElectionService {
             return false;
         }
         doSuccessElection();
-        log.info("vote success, id = {} 成为leader, 获得投票数 = {}", cluster.getId(), success.get());
+        log.info("election success, id = {} 成为leader, 获得投票数 = {}, term = {}", cluster.getId(), success.get(), persistenceState.getCurrentTerm());
         return true;
     }
 
@@ -145,7 +144,8 @@ public class ElectionServiceImpl implements ElectionService {
         RequestVoteResponseDTO requestVoteResponseDTO = new RequestVoteResponseDTO();
         requestVoteResponseDTO.setVoteGranted(true);
         requestVoteResponseDTO.setTerm(requestVoteDTO.getTerm());
-        log.info("vote success {} -> {}", cluster.getId(), requestVoteDTO.getCandidateId());
+        triggerService.updateElectionTaskTime();
+        log.info("vote success {} -> {}, term = {}", cluster.getId(), requestVoteDTO.getCandidateId(), persistenceState.getCurrentTerm());
         return requestVoteResponseDTO;
     }
 
@@ -161,7 +161,7 @@ public class ElectionServiceImpl implements ElectionService {
         heartbeatService.heartNotJudgeResult();
         leaderVolatileState.initMap();
         // todo 发起空日志写入 用于同步follow节点的日志信息
-        // TODO: 开启心跳任务，每秒执行一次
+
 
     }
 
