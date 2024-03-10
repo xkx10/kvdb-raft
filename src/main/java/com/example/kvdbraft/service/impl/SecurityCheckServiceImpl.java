@@ -22,7 +22,6 @@ public class SecurityCheckServiceImpl implements SecurityCheckService {
                 .handlerType(ESecurityCheckType.Vote.type)
                 .build();
         securityCheckProcess.handler(context);
-
     }
 
     @Override

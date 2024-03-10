@@ -60,8 +60,6 @@ public class AppendEntriesServiceImpl implements AppendEntriesService {
     private LogService logService;
     @Resource
     private TriggerService triggerService;
-    @Resource
-    private RocksService rocksService;
 
     private int oneRpcTimeOut = 1000;
 

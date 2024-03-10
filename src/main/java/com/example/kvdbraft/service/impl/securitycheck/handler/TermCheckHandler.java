@@ -23,7 +23,5 @@ public class TermCheckHandler implements SecurityCheckHandler {
             log.info("任期校验不通过，my term = {}，rpc term = {}", persistenceState.getCurrentTerm(), context.getRpcTerm());
             throw new SecurityException("任期校验不通过");
         }
-
     }
-
 }

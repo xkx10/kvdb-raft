@@ -6,6 +6,7 @@ import com.example.kvdbraft.service.StateMachineService;
 import com.example.kvdbraft.service.impl.RedisStateMachineServiceImpl;
 import com.example.kvdbraft.service.impl.client.OperationStrategy;
 import com.example.kvdbraft.service.impl.redis.RedisClient;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 import org.springframework.stereotype.Service;
 
@@ -17,7 +18,8 @@ import javax.annotation.Resource;
  */
 @ReadOperation
 @Service
-public class ReadStrategy{
+@Slf4j
+public class ReadStrategy implements OperationStrategy {
 
     @Resource
     VolatileState volatileState;
@@ -25,14 +27,17 @@ public class ReadStrategy{
     StateMachineService stateMachineService;
     @Resource
     RedisClient redisClient;
+
     /**
      * 读请求
      */
-    public String execute(String command) {
-        if(volatileState.getCommitIndex() > volatileState.getLastApplied()){
+    @Override
+    @SuppressWarnings("unchecked")
+    public <T> T execute(String command) {
+        if (volatileState.getCommitIndex() > volatileState.getLastApplied()) {
             stateMachineService.apply();
         }
         String[] split = command.split(" ");
-        return (String)redisClient.get(split[1]);
+        return (T) redisClient.get(split[1]);
     }
 }

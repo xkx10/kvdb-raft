@@ -50,10 +50,6 @@ public class HeartbeatServiceImpl implements HeartbeatService {
     private ConsumerService consumerService;
     @Resource
     private TriggerService triggerService;
-    @Resource
-    private StateMachineService stateMachineService;
-
-    private final ReentrantLock heartLock = new ReentrantLock();
 
     @Override
     public List<Future<Boolean>> heartNotJudgeResult() {

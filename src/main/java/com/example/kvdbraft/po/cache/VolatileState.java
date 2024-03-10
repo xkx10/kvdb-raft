@@ -16,7 +16,6 @@ import javax.annotation.Resource;
 @Component
 @Data
 public class VolatileState {
-
     private Integer commitIndex;
     private Integer lastApplied;
     private Integer lastIndex;

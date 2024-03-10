@@ -22,7 +22,7 @@ public class ClientOperationServiceImpl implements ClientOperationService {
     private List<OperationStrategy> strategies;
 
     @Override
-    public Boolean execute(String command) {
+    public <T> T execute(String command) {
         Optional<OperationStrategy> readStrategy = strategies.stream()
                 .filter(s -> isRead(command)
                         && s.getClass().isAnnotationPresent(ReadOperation.class))

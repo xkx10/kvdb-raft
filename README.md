@@ -21,15 +21,16 @@
 ## Getting started
 准备工作：
 - redis
+  - redis在本地开三份，暴露端口分别为：6371、6372、6373
 - zookeeper
 > 也可通过docker快速启动：
 1. redis docker run -d --name myredis -p 6379:6379 redis --requirepass "123456"
 2. docker run --name some-zookeeper -p 2181:2181 --restart always -d zookeeper
 ```
 git clone https://github.com/xkx10/kvdb-raft
-启动三个服务分别配置activate
+启动三个服务分别配置active
 -Dspring.profiles.active=node1
 -Dspring.profiles.active=node2
 -Dspring.profiles.active=node3
 ```
-
+注意：重启时，需删除raft文件夹

@@ -64,16 +64,17 @@ public class WriteStrategy implements OperationStrategy {
      * 6. 如果没有半数以上，则写入失败，回退log[]，并返回客户端写入错误
      */
     @Override
-    public Boolean execute(String command) {
-
+    @SuppressWarnings("unchecked")
+    public <T> T execute(String command) {
         try {
             if (!sendLogLock.tryLock(1, TimeUnit.SECONDS)) {
                 log.info("appendLock锁获取失败");
-                return false;
+                return (T) Boolean.valueOf(false);
             }
             // 如果不是主节点，则进行rpc调用主节点的写日志请求
             if (volatileState.getStatus() != EStatus.Leader.status) {
-                return consumerService.writeLeader(volatileState.getLeaderId(), command).getData();
+                boolean rs = consumerService.writeLeader(volatileState.getLeaderId(), command).getData();
+                return (T) Boolean.valueOf(rs);
             }
             // TODO:先假设command为set key value的形式
             String[] c = command.split(" ");
@@ -116,21 +117,18 @@ public class WriteStrategy implements OperationStrategy {
                 // 回退日志和lastIndex
                 persistenceState.getLogs().remove(lastIndex);
                 volatileState.setLastIndex(lastIndex - 1);
-                return false;
+                return (T) Boolean.valueOf(false);
             }
             long end = System.currentTimeMillis();
             // 写入成功了，更新commitIndex和应用到状态机，并且将状态进行持久化到rocks
             volatileState.setCommitIndex(lastIndex);
             log.info("日志写入成功 time = {} ", end - start);
-
-            return true;
+            return (T) Boolean.valueOf(true);
         } catch (InterruptedException e) {
             log.error("线程异常中断 message = {}", e.getMessage(), e);
-            return false;
+            return (T) Boolean.valueOf(false);
         } finally {
             sendLogLock.unlock();
         }
     }
-
-
 }

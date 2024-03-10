@@ -65,6 +65,6 @@ public class ProviderServiceImpl implements ProviderService {
     @Override
     public Result<Boolean> write(String command) {
         // 调用写数据服务
-        return clientOperationService.execute(command) ? Result.success(null) : Result.failure(null);
+        return clientOperationService.execute(command) ? Result.success(true) : Result.success(false);
     }
 }
