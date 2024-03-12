@@ -1,5 +1,10 @@
 package com.example.kvdbraft.service.impl.redis;
 
+import cn.hutool.core.util.StrUtil;
+import com.example.kvdbraft.po.NodeConfigField;
+import lombok.extern.log4j.Log4j;
+import lombok.extern.log4j.Log4j2;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.RedisCallback;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Component;
@@ -7,10 +12,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.CollectionUtils;
 
 import javax.annotation.Resource;
-import java.util.Collection;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -22,10 +24,14 @@ import java.util.concurrent.TimeUnit;
  *  </pre>
  */
 @Service
+@Slf4j
 public class RedisClient {
 
     @Resource
     private RedisTemplate<String, Object> redisTemplate;
+
+    @Resource
+    private NodeConfigField nodeConfigField;
 
     public void setRedisTemplate(RedisTemplate<String, Object> redisTemplate) {
         this.redisTemplate = redisTemplate;
@@ -33,11 +39,13 @@ public class RedisClient {
 
     // =============================common============================
 
+
     public Object executeRedisCommand(String commandString) {
         // todo 希望能实现执行原命令，比如commandString = set name xkx
         // Object execute = redisTemplate.execute(connection -> connection.execute(commandString), true);
         return null;
     }
+
     /**
      * 指定缓存失效时间
      *
@@ -152,8 +160,8 @@ public class RedisClient {
     /**
      * 递增
      *
-     * @param key 键
-     * @param delta  要增加几(大于0)
+     * @param key   键
+     * @param delta 要增加几(大于0)
      * @return
      */
     public long incr(String key, long delta) {
@@ -166,8 +174,8 @@ public class RedisClient {
     /**
      * 递减
      *
-     * @param key 键
-     * @param delta  要减少几(小于0)
+     * @param key   键
+     * @param delta 要减少几(小于0)
      * @return
      */
     public long decr(String key, long delta) {
@@ -425,6 +433,147 @@ public class RedisClient {
         }
     }
     // ===============================list=================================
+
+    /**
+     * 向分片list中添加元素
+     *
+     * @param key   键前缀
+     * @param value 添加元素值
+     * @param index 元素所在下标
+     * @return 是否添加成功
+     */
+    public boolean lSetByShard(String key, Object value, int index) {
+        int shardSize = nodeConfigField.getShardSize();
+        int shardNumber = index / shardSize;
+        try {
+            redisTemplate.opsForList().rightPush(key + shardNumber, value);
+            return true;
+        } catch (Exception e) {
+            log.error(e.getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * 从右边移除
+     *
+     * @param key
+     * @param index
+     * @return
+     */
+    public boolean lRemoveLastShard(String key, int index) {
+        int shardSize = nodeConfigField.getShardSize();
+        int shardNumber = index / shardSize;
+        try {
+            redisTemplate.opsForList().rightPop(key + shardNumber);
+            return true;
+        } catch (Exception e) {
+            log.error(e.getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * 移除List分片Index后的所有元素
+     * @param key 键
+     * @param index 下标
+     * @return 是否成功
+     */
+    public boolean lRemoveShardFromLast(String key, int index) {
+        Set<String> keysByPrefix = getKeysByPrefix(key);
+        int shardSize = nodeConfigField.getShardSize();
+        int shardNumber = index / shardSize;
+        int shardIndex = index % shardSize;
+        key = key + shardNumber;
+        try {
+            for (String str : keysByPrefix) {
+                if (StrUtil.equals(key, str)) {
+                    List<Object> values = lGet(str, 0, -1);
+                    for (int i = shardIndex; i < values.size(); i++) {
+                        redisTemplate.opsForList().rightPop(str);
+                    }
+                }
+                if (key.compareTo(str) < 0) {
+                    del(str);
+                }
+            }
+            return true;
+        } catch (Exception e) {
+            log.error(e.getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * 返回分片集合总元素个数
+     * @param key 键
+     * @return 元素大小
+     */
+    public Long lGetByShardSize(String key){
+        long res = 0;
+        Set<String> keysByPrefix = getKeysByPrefix(key);
+        for (String str : keysByPrefix) {
+            res += lGetListSize(str);
+        }
+        return res;
+    }
+    /**
+     * 拿到指定index的log
+     */
+    public Object lGetByShardIndex(String key, int index) {
+        int shardSize = nodeConfigField.getShardSize();
+        int shardNumber = index / shardSize;
+        int shardIndex = index % shardSize;
+        try {
+            return redisTemplate.opsForList().index(key + shardNumber, shardIndex);
+        } catch (Exception e) {
+            log.error(e.getMessage());
+            return null;
+        }
+    }
+
+    /**
+     * 拿到指定index以以后的所有Log
+     *
+     * @param key   键
+     * @param index 下标
+     * @return 返回List集合
+     */
+    public List<Object> lGetByShardIndexAfter(String key, int index) {
+        Set<String> keysByPrefix = getKeysByPrefix(key);
+        int shardSize = nodeConfigField.getShardSize();
+        int shardNumber = index / shardSize;
+        int shardIndex = index % shardSize;
+        List<Object> res = new ArrayList<>();
+        String startKey = key + shardNumber;
+        for (String str : keysByPrefix) {
+            if (StrUtil.equals(startKey, str)) {
+                List<Object> values = lGet(str, 0, -1);
+                for (int i = shardIndex; i < values.size(); i++) {
+                    res.add(values.get(i));
+                }
+            }
+            if (startKey.compareTo(str) < 0) {
+                List<Object> values = lGet(str, 0, -1);
+                res.addAll(values);
+            }
+        }
+        return res;
+    }
+
+    /**
+     * 拿到指定index所在分片list
+     *
+     * @param key   键
+     * @param index 下标
+     * @return 返回集合
+     */
+    public List<Object> lGetByShardIndexList(String key, int index) {
+        int shardSize = nodeConfigField.getShardSize();
+        int shardNumber = index / shardSize;
+        String startKey = key + shardNumber;
+        return lGet(startKey, 0, -1);
+    }
 
     /**
      * 获取list缓存的内容

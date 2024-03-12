@@ -7,11 +7,8 @@ import com.example.kvdbraft.po.NodeConfigField;
 import com.example.kvdbraft.po.cache.Cluster;
 import com.example.kvdbraft.po.cache.PersistenceState;
 import com.example.kvdbraft.po.cache.VolatileState;
-import com.example.kvdbraft.rpc.factory.ReferenceFactory;
 import com.example.kvdbraft.rpc.interfaces.ConsumerService;
-import com.example.kvdbraft.rpc.interfaces.ProviderService;
 import com.example.kvdbraft.service.HeartbeatService;
-import com.example.kvdbraft.service.StateMachineService;
 import com.example.kvdbraft.service.TriggerService;
 import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
@@ -23,7 +20,6 @@ import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
-import java.util.concurrent.locks.ReentrantLock;
 
 /**
  * @author WangChao

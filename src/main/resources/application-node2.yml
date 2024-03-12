@@ -24,6 +24,7 @@ node:
             shortLeaseTerm: 15
             heartbeatIntervalTime: 10
             electionTimeout: 300
+            shardSize: 2
 logging:
     # 只有配置了日志文件，才能被监控收集
     file:

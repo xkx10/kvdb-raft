@@ -16,4 +16,9 @@ public class SystemTaskTest {
         redisClient.executeRedisCommand("set name xkx");
         System.out.println(redisClient.get("name"));
     }
+
+    @Test
+    public void test(){
+        System.out.println("key-0".compareTo("key-1"));
+    }
 }

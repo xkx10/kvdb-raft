@@ -1,11 +1,5 @@
 package com.example.kvdbraft.enums;
 
-import com.example.kvdbraft.annotation.HeartSecurityCheck;
-import com.example.kvdbraft.annotation.LogAppendSecurityCheck;
-import com.example.kvdbraft.annotation.VoteSecurityCheck;
-
-import java.lang.annotation.Annotation;
-
 /**
  * 用于安全性检测的类型
  * @author xiaka

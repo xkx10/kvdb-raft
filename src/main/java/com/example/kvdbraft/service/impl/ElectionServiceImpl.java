@@ -3,6 +3,7 @@ package com.example.kvdbraft.service.impl;
 import com.example.kvdbraft.dto.RequestVoteDTO;
 import com.example.kvdbraft.dto.RequestVoteResponseDTO;
 
+import com.example.kvdbraft.enums.EPersistenceKeys;
 import com.example.kvdbraft.enums.EStatus;
 import com.example.kvdbraft.po.Log;
 
@@ -16,6 +17,7 @@ import com.example.kvdbraft.service.HeartbeatService;
 import com.example.kvdbraft.service.LogService;
 import com.example.kvdbraft.service.SecurityCheckService;
 import com.example.kvdbraft.service.TriggerService;
+import com.example.kvdbraft.service.impl.redis.RedisClient;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
@@ -55,6 +57,8 @@ public class ElectionServiceImpl implements ElectionService {
     HeartbeatService heartbeatService;
     @Resource
     LeaderVolatileState leaderVolatileState;
+    @Resource
+    private RedisClient redisClient;
     @Override
     public boolean startElection() {
         log.info("id = {} 发起超时选举投票，可能即将成为新的leader。cluster = {}", cluster.getId(), cluster.getClusterIds());
@@ -68,7 +72,7 @@ public class ElectionServiceImpl implements ElectionService {
         RequestVoteDTO requestVoteDTO = new RequestVoteDTO();
         requestVoteDTO.setCandidateId(cluster.getId());
         requestVoteDTO.setTerm(persistenceState.getCurrentTerm());
-        Log lastLog = persistenceState.getLogs().get(volatileState.getLastIndex());
+        Log lastLog = (Log)redisClient.lGetByShardIndex(EPersistenceKeys.LogEntries.key,volatileState.getLastIndex());
         requestVoteDTO.setLastLogIndex(lastLog.getIndex());
         requestVoteDTO.setLastLogTerm(lastLog.getTerm());
         for (String clusterId : cluster.getNoMyselfClusterIds()) {

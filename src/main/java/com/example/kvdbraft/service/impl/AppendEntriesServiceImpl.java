@@ -2,6 +2,7 @@ package com.example.kvdbraft.service.impl;
 
 import com.example.kvdbraft.dto.AppendEntriesDTO;
 import com.example.kvdbraft.dto.AppendEntriesResponseDTO;
+import com.example.kvdbraft.enums.EPersistenceKeys;
 import com.example.kvdbraft.enums.EStatus;
 import com.example.kvdbraft.po.Log;
 import com.example.kvdbraft.po.NodeConfigField;
@@ -12,14 +13,11 @@ import com.example.kvdbraft.po.cache.VolatileState;
 import com.example.kvdbraft.rpc.interfaces.ConsumerService;
 import com.example.kvdbraft.service.AppendEntriesService;
 import com.example.kvdbraft.service.LogService;
-import com.example.kvdbraft.service.RocksService;
 import com.example.kvdbraft.service.SecurityCheckService;
 import com.example.kvdbraft.service.TriggerService;
-import com.example.kvdbraft.vo.Result;
+import com.example.kvdbraft.service.impl.redis.RedisClient;
 import jakarta.annotation.Resource;
-import lombok.extern.log4j.Log4j;
 import lombok.extern.log4j.Log4j2;
-import org.springframework.scheduling.TriggerContext;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
@@ -31,6 +29,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReentrantLock;
+import java.util.stream.Collectors;
 
 /**
  * @author WangChao
@@ -60,7 +59,8 @@ public class AppendEntriesServiceImpl implements AppendEntriesService {
     private LogService logService;
     @Resource
     private TriggerService triggerService;
-
+    @Resource
+    private RedisClient redisClient;
     private int oneRpcTimeOut = 1000;
 
     private final ReentrantLock logLock = new ReentrantLock();
@@ -72,7 +72,7 @@ public class AppendEntriesServiceImpl implements AppendEntriesService {
         if (volatileState.getStatus() != EStatus.Leader.status) {
             return null;
         }
-       
+
         Set<String> follows = cluster.getNoMyselfClusterIds();
         List<Future<Boolean>> futureArrayList = new ArrayList<>();
         // 拿到其他节点的地址，除了自己的调用地址
@@ -89,8 +89,11 @@ public class AppendEntriesServiceImpl implements AppendEntriesService {
             // 根据url拿到nextIndex，然后将其后面的日志发送过去
             Map<String, Integer> nextIndexMap = leaderVolatileState.getNextIndexMap();
             Integer index = nextIndexMap.get(url);
-            Log preLog = persistenceState.getLogs().get(index - 1);
-            List<Log> entries = persistenceState.getLogs().subList(index, persistenceState.getLogs().size());
+            Log preLog = (Log) redisClient.lGetByShardIndex(EPersistenceKeys.LogEntries.key, index - 1);
+            List<Log> entries =
+                    redisClient.lGetByShardIndexAfter(EPersistenceKeys.LogEntries.key, index)
+                            .stream().map(obj -> (Log) obj)
+                            .collect(Collectors.toList());
             AppendEntriesDTO logDTO = AppendEntriesDTO.builder()
                     .entries(entries)
                     .prevLogIndex(preLog.getIndex())
@@ -104,8 +107,10 @@ public class AppendEntriesServiceImpl implements AppendEntriesService {
             // 同步失败则进行重试
             while (!logResult.getSuccess() && persistenceState.getCurrentTerm() >= logResult.getTerm()) {
                 index--;
-                preLog = persistenceState.getLogs().get(index - 1);
-                entries = persistenceState.getLogs().subList(index, persistenceState.getLogs().size());
+                preLog = (Log) redisClient.lGetByShardIndex(EPersistenceKeys.LogEntries.key, index - 1);
+                entries = redisClient.lGetByShardIndexAfter(EPersistenceKeys.LogEntries.key, index)
+                        .stream().map(obj -> (Log) obj)
+                        .collect(Collectors.toList());
                 logDTO = AppendEntriesDTO.builder()
                         .entries(entries)
                         .prevLogIndex(preLog.getIndex())
@@ -117,12 +122,14 @@ public class AppendEntriesServiceImpl implements AppendEntriesService {
                         .build();
                 logResult = consumerService.sendLog(url, logDTO).getData();
             }
-            if(!logResult.getSuccess() && persistenceState.getCurrentTerm() < logResult.getTerm()){
+            // TODO:这里有问题，不该是主节点发起选举，而是从节点开始选举
+            if (!logResult.getSuccess() && persistenceState.getCurrentTerm() < logResult.getTerm()) {
                 volatileState.setStatus(EStatus.Follower.status);
                 triggerService.stopHeartTask();
                 triggerService.startElectionTask();
+                return false;
             }
-            nextIndexMap.put(url, persistenceState.getLogs().size());
+            nextIndexMap.put(url, index + 1);
             return logResult.getSuccess();
         } catch (Exception e) {
             log.error("HeartBeatTask RPC Fail, request URL : {}", url, e);
@@ -146,22 +153,21 @@ public class AppendEntriesServiceImpl implements AppendEntriesService {
             persistenceState.setVotedFor(null);
             // 确保preLog一致性，上一个没冲突继续
             Log prelog = logService.getLastLog();
-            if(!prelog.getIndex().equals(entriesDTO.getPrevLogIndex()) || !prelog.getTerm().equals(entriesDTO.getPrevLogTerm())){
+            if (!prelog.getIndex().equals(entriesDTO.getPrevLogIndex()) || !prelog.getTerm().equals(entriesDTO.getPrevLogTerm())) {
                 return AppendEntriesResponseDTO.builder()
                         .term(currentTerm).success(false).build();
             }
+            log.error("日志删除前，日志实体为 = {}", entriesDTO);
             // 如果已经存在的日志条目和新的产生冲突，删除这一条和之后所有的
-            if (entriesDTO.getPrevLogIndex() + 1 < persistenceState.getLogs().size()) {
-                Log existLog = persistenceState.getLogs().get(entriesDTO.getPrevLogIndex() + 1);
-                if (existLog != null) {
-                    // 删除这一条和之后所有的,
-                    logService.removeOnStartIndex(entriesDTO.getPrevLogIndex() + 1);
-                }
+            if (entriesDTO.getPrevLogIndex() + 1 <= volatileState.getLastIndex()) {
+                // 删除这一条和之后所有的记录
+                logService.removeOnStartIndex(entriesDTO.getPrevLogIndex() + 1);
+                log.error("日志删除后，日志实体为 = {}", entriesDTO);
             }
             // 写日志
             logService.writeLog(entriesDTO.getEntries());
-            volatileState.setLastIndex(volatileState.getLastIndex() + entriesDTO.getEntries().size());
-            log.info("接受日志成功，time = {}",System.currentTimeMillis() - start);
+            volatileState.setLastIndex(volatileState.getLastIndex() + entriesDTO.getEntries().size()-1);
+            log.info("接受日志成功，time = {}", System.currentTimeMillis() - start);
             return AppendEntriesResponseDTO.builder()
                     .term(currentTerm)
                     .success(true).build();
@@ -171,7 +177,7 @@ public class AppendEntriesServiceImpl implements AppendEntriesService {
             // 主节点下线
             return AppendEntriesResponseDTO.builder()
                     .term(persistenceState.getCurrentTerm()).success(false).build();
-        }finally {
+        } finally {
             logLock.unlock();
         }
     }

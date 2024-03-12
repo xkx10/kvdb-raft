@@ -1,7 +1,7 @@
 package com.example.kvdbraft.service.impl.client.handler;
 
 import com.example.kvdbraft.annotation.WriteOperation;
-import com.example.kvdbraft.dto.RequestVoteResponseDTO;
+import com.example.kvdbraft.enums.EPersistenceKeys;
 import com.example.kvdbraft.enums.EStatus;
 import com.example.kvdbraft.po.Command;
 import com.example.kvdbraft.po.Log;
@@ -10,11 +10,10 @@ import com.example.kvdbraft.po.cache.PersistenceState;
 import com.example.kvdbraft.po.cache.VolatileState;
 import com.example.kvdbraft.rpc.interfaces.ConsumerService;
 import com.example.kvdbraft.service.AppendEntriesService;
-import com.example.kvdbraft.service.RocksService;
 import com.example.kvdbraft.service.SecurityCheckService;
 import com.example.kvdbraft.service.StateMachineService;
 import com.example.kvdbraft.service.impl.client.OperationStrategy;
-import lombok.extern.log4j.Log4j2;
+import com.example.kvdbraft.service.impl.redis.RedisClient;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
@@ -35,8 +34,6 @@ public class WriteStrategy implements OperationStrategy {
     @Resource
     private ConsumerService consumerService;
     @Resource
-    private SecurityCheckService securityCheckService;
-    @Resource
     private VolatileState volatileState;
     @Resource
     private PersistenceState persistenceState;
@@ -44,16 +41,12 @@ public class WriteStrategy implements OperationStrategy {
     private AppendEntriesService appendEntriesService;
     @Resource
     private Cluster cluster;
-    @Resource
-    private StateMachineService stateMachineService;
-    @Resource
-    private RocksService rocksService;
     private int oneRpcTimeOut = 1000;
     private int sumRpcTimeOut = 1500;
-
     ExecutorService executor = Executors.newCachedThreadPool();
-
     ReentrantLock sendLogLock = new ReentrantLock();
+    @Resource
+    private RedisClient redisClient;
 
     /**
      * 1. 如果不是主节点，则进行rpc调用主节点的写日志请求
@@ -87,7 +80,7 @@ public class WriteStrategy implements OperationStrategy {
                     .index(lastIndex)
                     .term(persistenceState.getCurrentTerm())
                     .command(cm).build();
-            persistenceState.getLogs().add(writeLog);
+            redisClient.lSetByShard(EPersistenceKeys.LogEntries.key, writeLog, lastIndex);
             volatileState.setLastIndex(lastIndex);
             long start = System.currentTimeMillis();
             List<Future<Boolean>> futures = appendEntriesService.sendLogToFollow();
@@ -115,7 +108,7 @@ public class WriteStrategy implements OperationStrategy {
             }
             if (success.get() * 2 <= cluster.getClusterIds().size()) {
                 // 回退日志和lastIndex
-                persistenceState.getLogs().remove(lastIndex);
+                redisClient.lRemoveLastShard(EPersistenceKeys.LogEntries.key, lastIndex);
                 volatileState.setLastIndex(lastIndex - 1);
                 return (T) Boolean.valueOf(false);
             }

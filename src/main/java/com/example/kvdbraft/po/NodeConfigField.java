@@ -18,4 +18,6 @@ public class NodeConfigField {
 
     // 上一次租期时间戳
     private long lastShortLeaseTerm;
+
+    private int shardSize;
 }

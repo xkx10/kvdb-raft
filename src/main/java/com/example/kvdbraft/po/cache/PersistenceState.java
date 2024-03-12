@@ -1,56 +1,66 @@
 package com.example.kvdbraft.po.cache;
 
-import com.alibaba.fastjson.JSON;
+import com.example.kvdbraft.enums.EPersistenceKeys;
 import com.example.kvdbraft.po.Log;
-import com.example.kvdbraft.po.Log.LogBuilder;
-import com.example.kvdbraft.service.RocksService;
+import com.example.kvdbraft.service.impl.redis.RedisClient;
+import io.lettuce.core.RedisException;
 import jakarta.annotation.PostConstruct;
 import lombok.Data;
-import org.rocksdb.RocksDB;
 import org.rocksdb.RocksDBException;
 import org.springframework.beans.BeanUtils;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import javax.annotation.Resource;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.locks.ReentrantLock;
 
 /**
  * RocksDB持久化节点配置
- *
  */
 @Component
 @Data
 public class PersistenceState {
     private Long currentTerm;
     private String votedFor;
-    private List<Log> logs;
+
     @Resource
-    private RocksService rocksService;
+    private RedisClient redisClient;
 
     @PostConstruct
     public void init() {
         try {
-            PersistenceState persistenceState = rocksService.read("PersistenceState", PersistenceState.class);
-            if(persistenceState == null){
-                currentTerm = 0L;
-                votedFor = null;
-                logs = new ArrayList<>();
+            Integer PerCurrentTerm = (Integer) redisClient.get(EPersistenceKeys.PerCurrentTerm.key);
+            Object PerVotedFor = redisClient.get(EPersistenceKeys.PerVotedFor.key);
+            this.currentTerm = PerCurrentTerm == null ? 0L : PerCurrentTerm.longValue();
+            this.votedFor = PerVotedFor == null ? null : (String) PerVotedFor;
+            redisClient.set(EPersistenceKeys.PerCurrentTerm.key, this.currentTerm);
+            redisClient.set(EPersistenceKeys.PerVotedFor.key, this.votedFor);
+            if(redisClient.getKeysByPrefix(EPersistenceKeys.LogEntries.key).isEmpty()){
                 Log log = Log.builder().index(0).term(-1L).build();
-                logs.add(log);
-                return;
+                redisClient.lSetByShard(EPersistenceKeys.LogEntries.key, log, 0);
             }
-            BeanUtils.copyProperties(persistenceState, this);
-        } catch (RocksDBException e) {
+        } catch (RedisException e) {
             throw new RuntimeException(e);
         }
     }
-    public void increaseTerm(){
-        synchronized (PersistenceState.class){
+
+    public void increaseTerm() {
+        synchronized (PersistenceState.class) {
             currentTerm = currentTerm + 1;
+        }
+    }
+
+    public void setCurrentTerm(long currentTerm) {
+        synchronized (PersistenceState.class) {
+            this.currentTerm = currentTerm;
+            redisClient.set(EPersistenceKeys.PerCurrentTerm.key, this.currentTerm);
+        }
+    }
+
+    public void setVotedFor(String votedFor) {
+        synchronized (PersistenceState.class) {
+            this.votedFor = votedFor;
+            redisClient.set(EPersistenceKeys.PerVotedFor.key, this.votedFor);
         }
     }
 }
