@@ -7,6 +7,7 @@ import com.example.kvdbraft.dto.ClusterChangeResponseDTO;
 import com.example.kvdbraft.dto.RequestVoteDTO;
 import com.example.kvdbraft.dto.RequestVoteResponseDTO;
 import com.example.kvdbraft.enums.EStatus;
+import com.example.kvdbraft.po.Log;
 import com.example.kvdbraft.po.cache.Cluster;
 import com.example.kvdbraft.po.cache.PersistenceState;
 import com.example.kvdbraft.po.cache.VolatileState;
@@ -68,9 +69,9 @@ public class ProviderServiceImpl implements ProviderService {
     }
 
     @Override
-    public Result<Boolean> write(String command) {
+    public Result<Boolean> write(Log sendLog) {
         // 调用写数据服务
-        return clientOperationService.execute(command) ? Result.success(true) : Result.success(false);
+        return appendEntriesService.sendLogToFollow(sendLog) ? Result.success(null) : Result.failure(null);
     }
 
     @Override
