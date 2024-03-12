@@ -21,6 +21,15 @@ public class Cluster {
     private String id;
 
     /**
+     * 变更状态，如果为true说明节点处于两阶段提交的中间状态
+     * 这时候集群的决定需要old集群和new集群都有一半以上节点同意
+     */
+    private boolean changeStatus = false;
+
+    private Set<String> oldClusterIds;
+    private Set<String> newClusterIds;
+
+    /**
      * 获取除自己节点以外的id
      * @return 节点列表
      */

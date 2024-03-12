@@ -2,8 +2,11 @@ package com.example.kvdbraft.rpc.interfaces;
 
 import com.example.kvdbraft.dto.AppendEntriesDTO;
 import com.example.kvdbraft.dto.AppendEntriesResponseDTO;
+import com.example.kvdbraft.dto.ClusterChangeDTO;
+import com.example.kvdbraft.dto.ClusterChangeResponseDTO;
 import com.example.kvdbraft.dto.RequestVoteDTO;
 import com.example.kvdbraft.dto.RequestVoteResponseDTO;
+import com.example.kvdbraft.po.Log;
 import com.example.kvdbraft.vo.Result;
 
 public interface ProviderService {
@@ -33,7 +36,14 @@ public interface ProviderService {
 
     /**
      * 写入主节点
-     * @param command redis命令
+     * @param sendLog log
      */
-    Result<Boolean> write(String command);
+    Result<Boolean> write(Log sendLog);
+
+    /**
+     * 集群动态变更
+     * @param clusterChangeDTO
+     * @return
+     */
+    Result<ClusterChangeResponseDTO> changeCluster(ClusterChangeDTO clusterChangeDTO);
 }

@@ -2,6 +2,8 @@ package com.example.kvdbraft.rpc.provider;
 
 import com.example.kvdbraft.dto.AppendEntriesDTO;
 import com.example.kvdbraft.dto.AppendEntriesResponseDTO;
+import com.example.kvdbraft.dto.ClusterChangeDTO;
+import com.example.kvdbraft.dto.ClusterChangeResponseDTO;
 import com.example.kvdbraft.dto.RequestVoteDTO;
 import com.example.kvdbraft.dto.RequestVoteResponseDTO;
 import com.example.kvdbraft.enums.EStatus;
@@ -11,6 +13,7 @@ import com.example.kvdbraft.po.cache.VolatileState;
 import com.example.kvdbraft.rpc.interfaces.ProviderService;
 import com.example.kvdbraft.service.AppendEntriesService;
 import com.example.kvdbraft.service.ClientOperationService;
+import com.example.kvdbraft.service.ClusterService;
 import com.example.kvdbraft.service.HeartbeatService;
 import com.example.kvdbraft.service.ElectionService;
 import com.example.kvdbraft.vo.Result;
@@ -35,6 +38,8 @@ public class ProviderServiceImpl implements ProviderService {
     private ElectionService electionService;
     @Resource
     private ClientOperationService clientOperationService;
+    @Resource
+    ClusterService clusterService;
 
     @Override
     public Result<RequestVoteResponseDTO> handlerElection(RequestVoteDTO requestVoteDTO) {
@@ -67,4 +72,10 @@ public class ProviderServiceImpl implements ProviderService {
         // 调用写数据服务
         return clientOperationService.execute(command) ? Result.success(true) : Result.success(false);
     }
+
+    @Override
+    public Result<ClusterChangeResponseDTO> changeCluster(ClusterChangeDTO clusterChangeDTO) {
+        return Result.success(clusterService.handlerClusterChange(clusterChangeDTO));
+    }
+
 }

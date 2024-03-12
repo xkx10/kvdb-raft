@@ -4,6 +4,7 @@ import com.example.kvdbraft.dto.AppendEntriesDTO;
 import com.example.kvdbraft.dto.AppendEntriesResponseDTO;
 import com.example.kvdbraft.enums.EPersistenceKeys;
 import com.example.kvdbraft.enums.EStatus;
+import com.example.kvdbraft.po.Command;
 import com.example.kvdbraft.po.Log;
 import com.example.kvdbraft.po.NodeConfigField;
 import com.example.kvdbraft.po.cache.Cluster;
@@ -24,10 +25,12 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.stream.Collectors;
 
@@ -36,7 +39,7 @@ import java.util.stream.Collectors;
  * @date 2024-02-22 19:51
  */
 @Service
-@Log4j2
+@Slf4j
 public class AppendEntriesServiceImpl implements AppendEntriesService {
     @Resource
     private ConsumerService consumerService;
@@ -62,11 +65,120 @@ public class AppendEntriesServiceImpl implements AppendEntriesService {
     @Resource
     private RedisClient redisClient;
     private int oneRpcTimeOut = 1000;
+    private int sumRpcTimeOut = 1500;
 
     private final ReentrantLock logLock = new ReentrantLock();
+    private final ReentrantLock sendLogLock = new ReentrantLock();
 
     // 客户端调用发送日志时，如果失败，则nextIndex-1后重新调用该方法
     @Override
+    public Boolean sendLogToFollow(Log sendLog) {
+        try {
+            if (!sendLogLock.tryLock(1, TimeUnit.SECONDS)) {
+                log.info("appendLock锁获取失败");
+                return false;
+            }
+            // 如果不是主节点，则进行rpc调用主节点的写日志请求
+            if (volatileState.getStatus() != EStatus.Leader.status) {
+                return consumerService.writeLeader(volatileState.getLeaderId(), sendLog).getData();
+            }
+            int lastIndex = volatileState.getLastIndex() + 1;
+            sendLog.setIndex(lastIndex);
+            sendLog.setTerm(persistenceState.getCurrentTerm());
+            persistenceState.getLogs().add(sendLog);
+            volatileState.setLastIndex(lastIndex);
+            long start = System.currentTimeMillis();
+            List<Future<Boolean>> futures = sendLogToFollow();
+            AtomicInteger success = new AtomicInteger(1);
+            CountDownLatch latch = new CountDownLatch(futures.size());
+            for (Future<Boolean> future : futures) {
+                logExecutor.submit(() -> {
+                    try {
+                        Boolean res = future.get(oneRpcTimeOut, TimeUnit.MILLISECONDS);
+                        if (res) {
+                            success.incrementAndGet();
+                        }
+                    } catch (Exception e) {
+                        log.error("从节点日志异步同步错误");
+                    } finally {
+                        //  每次调用这个方法，计数器的值就会减一。当计数器的值减到零时，所有因为调用 await() 方法而在等待的线程都会被唤醒
+                        latch.countDown();
+                    }
+                });
+            }
+            // 等待三秒同步
+            boolean await = latch.await(sumRpcTimeOut, TimeUnit.MILLISECONDS);
+            if (!await) {
+                log.error("存在一个或多个节点连接超时");
+            }
+            if (success.get() * 2 <= cluster.getClusterIds().size()) {
+                // 回退日志和lastIndex
+                persistenceState.getLogs().remove(lastIndex);
+                volatileState.setLastIndex(lastIndex - 1);
+                return false;
+            }
+            long end = System.currentTimeMillis();
+            // 写入成功了，更新commitIndex和应用到状态机，并且将状态进行持久化到rocks
+            volatileState.setCommitIndex(lastIndex);
+            log.info("日志写入成功 time = {} ", end - start);
+
+            return true;
+        } catch (InterruptedException e) {
+            log.error("线程异常中断 message = {}", e.getMessage(), e);
+            return false;
+        } finally {
+            sendLogLock.unlock();
+        }
+    }
+
+    @Override
+    public AppendEntriesResponseDTO appendEntries(AppendEntriesDTO entriesDTO) {
+        try {
+            if (!logLock.tryLock(oneRpcTimeOut, TimeUnit.MILLISECONDS)) {
+                log.info("appendLock锁获取失败");
+                return AppendEntriesResponseDTO.fail();
+            }
+            long start = System.currentTimeMillis();
+            long currentTerm = persistenceState.getCurrentTerm();
+            securityCheckService.logAppendSecurityCheck(entriesDTO);
+            volatileState.setLeaderId(entriesDTO.getLeaderId());
+            volatileState.setStatus(EStatus.Follower.status);
+            persistenceState.setCurrentTerm(entriesDTO.getTerm());
+            persistenceState.setVotedFor(null);
+            // 确保preLog一致性，上一个没冲突继续
+            Log prelog = logService.getLastLog();
+            if(!prelog.getIndex().equals(entriesDTO.getPrevLogIndex()) || !prelog.getTerm().equals(entriesDTO.getPrevLogTerm())){
+                return AppendEntriesResponseDTO.builder()
+                        .term(currentTerm).success(false).build();
+            }
+            // 如果已经存在的日志条目和新的产生冲突，删除这一条和之后所有的
+            if (entriesDTO.getPrevLogIndex() + 1 < persistenceState.getLogs().size()) {
+                Log existLog = persistenceState.getLogs().get(entriesDTO.getPrevLogIndex() + 1);
+                if (existLog != null) {
+                    // 删除这一条和之后所有的,
+                    logService.removeOnStartIndex(entriesDTO.getPrevLogIndex() + 1);
+                }
+            }
+            // 写日志
+            logService.writeLog(entriesDTO.getEntries());
+            volatileState.setLastIndex(volatileState.getLastIndex() + entriesDTO.getEntries().size());
+            log.info("接受日志成功，time = {}",System.currentTimeMillis() - start);
+            return AppendEntriesResponseDTO.builder()
+                    .term(currentTerm)
+                    .success(true).build();
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
+        } catch (SecurityException e) {
+            // 主节点下线
+            return AppendEntriesResponseDTO.builder()
+                    .term(persistenceState.getCurrentTerm()).success(false).build();
+        }finally {
+            logLock.unlock();
+        }
+    }
+
+
+
     public List<Future<Boolean>> sendLogToFollow() {
         // 发送给所有节点日志
         if (volatileState.getStatus() != EStatus.Leader.status) {

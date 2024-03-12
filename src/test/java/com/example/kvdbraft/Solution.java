@@ -9,71 +9,33 @@ import java.util.List;
 import java.util.Set;
 
 class Solution {
-    private int f(List[] list, int index, Set<String> set, int[] vis){
-        if(vis[index] == 1) return 0;
-        vis[index] = 1;
+    private int getStr(String str){
+        int n = str.length();
         int ans = 0;
-        for(int i = 0; i<list[index].size(); i++){
-            int j = (int)list[index].get(i);
-            if(vis[j] == 1) continue;
-            String str = index + "-" + j;
-            if(set.contains(str)) ans++;
-            ans += f(list,j,set,vis);
+        for(int i = 0; i<n; i++){
+            char ch = str.charAt(i);
+            ans = ans*10 + ch - '0';
         }
         return ans;
     }
-    private void f1(List[] list, int index, Set<String> set, int[] vis, int[] sumList){
-        if(vis[index] == 1) return;
-        vis[index] = 1;
-        for(int i = 0; i<list[index].size(); i++){
-            int j = (int)list[index].get(i);
-            if(vis[j] == 1) continue;
-            String str = index + "-" + j;
-            sumList[j] = sumList[i];
-            if(set.contains(str)) sumList[j]--;
-            str = j + "-" + index;
-            if(set.contains(str)) sumList[j]++;
-            f1(list,j,set,vis,sumList);
+    public int compareVersion(String version1, String version2) {
+        String[] str1 = version1.split("\\.");
+        String[] str2 = version2.split("\\.");
+        int n = Math.min(str1.length, str2.length);
+        for(int i = 0; i < n; i++){
+            int sum1 = getStr(str1[i]);
+            int sum2 = getStr(str2[i]);
+            if(sum1>sum2) return 1;
+            else if(sum2>sum1) return -1;
         }
-
+        while(n<str1.length||n<str2.length){
+            if(n<str1.length&&getStr(str1[n])>0) return 1;
+            if(n<str2.length&&getStr(str2[n])>0) return -1;
+        }
+        return 0;
     }
-    private int getN(int[][] edges){
-        int n = 0;
-        for(int i = 0; i<edges.length;i++){
-            n = Math.max(n, Math.max(edges[i][0],edges[i][1]));
-        }
-        return n+1;
-    }
-    public int rootCount(int[][] edges, int[][] guesses, int k) {
-        int n = getN(edges);
-        List[] list = new List[n];
-        for(int i = 0; i<n; i++){
-            list[i] = new ArrayList<>();
-        }
-        for(int i = 0; i<edges.length; i++){
-            list[edges[i][0]].add(edges[i][1]);
-            list[edges[i][1]].add(edges[i][0]);
-        }
-        Set<String> set = new HashSet<>();
-        for(int i = 0; i<guesses.length; i++){
-            String str = guesses[i][0] + "-" + guesses[i][1];
-            set.add(str);
-        }
-        int[] sumList = new int[n];
-        sumList[0] = f(list,0,set,new int[n]);
-        for(int i = 0; i<n; i++){
-            sumList[i] = sumList[0];
-        }
-        f1(list,0,set,new int[n],sumList);
-        int ans = 0;
-        for(int i = 0; i<n; i++){
-            if(sumList[i]>=k) ans++;
-        }
-        return ans;
-    }
-
     public static void main(String[] args) {
         Solution solution = new Solution();
-        System.out.println(solution.rootCount(new int[][]{{0, 1}, {1, 2}, {2, 3}, {3, 4}}, new int[][]{{1,0}, {3, 4}, {2, 1}, {3, 2}}, 2));
+        System.out.println(solution.compareVersion("1.01","1.001"));
     }
 }

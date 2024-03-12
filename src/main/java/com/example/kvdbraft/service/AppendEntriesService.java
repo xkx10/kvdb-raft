@@ -2,6 +2,7 @@ package com.example.kvdbraft.service;
 
 import com.example.kvdbraft.dto.AppendEntriesDTO;
 import com.example.kvdbraft.dto.AppendEntriesResponseDTO;
+import com.example.kvdbraft.po.Log;
 import com.example.kvdbraft.vo.Result;
 
 import java.util.List;
@@ -17,7 +18,7 @@ public interface AppendEntriesService {
      *
      * @return 返回结果
      */
-    List<Future<Boolean>> sendLogToFollow();
+    Boolean sendLogToFollow(Log log);
 
 
     /**
