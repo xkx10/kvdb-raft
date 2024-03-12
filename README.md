@@ -33,4 +33,3 @@ git clone https://github.com/xkx10/kvdb-raft
 -Dspring.profiles.active=node2
 -Dspring.profiles.active=node3
 ```
-注意：重启时，需删除raft文件夹
