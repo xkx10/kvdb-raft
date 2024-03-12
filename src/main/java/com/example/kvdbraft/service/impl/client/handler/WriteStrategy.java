@@ -31,22 +31,11 @@ import java.util.concurrent.locks.ReentrantLock;
 @Service
 @Slf4j
 public class WriteStrategy implements OperationStrategy {
-    @Resource
-    private ConsumerService consumerService;
+
     @Resource
     private VolatileState volatileState;
-    @Resource
-    private PersistenceState persistenceState;
-    @Resource
-    private AppendEntriesService appendEntriesService;
-    @Resource
-    private Cluster cluster;
-    private int oneRpcTimeOut = 1000;
-    private int sumRpcTimeOut = 1500;
-    ExecutorService executor = Executors.newCachedThreadPool();
-    ReentrantLock sendLogLock = new ReentrantLock();
-    @Resource
-    private RedisClient redisClient;
+   @Resource
+   private AppendEntriesService appendEntriesService;
 
     /**
      * 1. 如果不是主节点，则进行rpc调用主节点的写日志请求
@@ -59,69 +48,14 @@ public class WriteStrategy implements OperationStrategy {
     @Override
     @SuppressWarnings("unchecked")
     public <T> T execute(String command) {
-        try {
-            if (!sendLogLock.tryLock(1, TimeUnit.SECONDS)) {
-                log.info("appendLock锁获取失败");
-                return (T) Boolean.valueOf(false);
-            }
-            // 如果不是主节点，则进行rpc调用主节点的写日志请求
-            if (volatileState.getStatus() != EStatus.Leader.status) {
-                boolean rs = consumerService.writeLeader(volatileState.getLeaderId(), command).getData();
-                return (T) Boolean.valueOf(rs);
-            }
-            // TODO:先假设command为set key value的形式
-            String[] c = command.split(" ");
-            Command cm = Command.builder()
-                    .key(c[1])
-                    .value(c[2])
-                    .build();
-            int lastIndex = volatileState.getLastIndex() + 1;
-            Log writeLog = Log.builder()
-                    .index(lastIndex)
-                    .term(persistenceState.getCurrentTerm())
-                    .command(cm).build();
-            redisClient.lSetByShard(EPersistenceKeys.LogEntries.key, writeLog, lastIndex);
-            volatileState.setLastIndex(lastIndex);
-            long start = System.currentTimeMillis();
-            List<Future<Boolean>> futures = appendEntriesService.sendLogToFollow();
-            AtomicInteger success = new AtomicInteger(1);
-            CountDownLatch latch = new CountDownLatch(futures.size());
-            for (Future<Boolean> future : futures) {
-                executor.submit(() -> {
-                    try {
-                        Boolean res = future.get(oneRpcTimeOut, TimeUnit.MILLISECONDS);
-                        if (res) {
-                            success.incrementAndGet();
-                        }
-                    } catch (Exception e) {
-                        log.error("从节点日志异步同步错误");
-                    } finally {
-                        //  每次调用这个方法，计数器的值就会减一。当计数器的值减到零时，所有因为调用 await() 方法而在等待的线程都会被唤醒
-                        latch.countDown();
-                    }
-                });
-            }
-            // 等待三秒同步
-            boolean await = latch.await(sumRpcTimeOut, TimeUnit.MILLISECONDS);
-            if (!await) {
-                log.error("存在一个或多个节点连接超时");
-            }
-            if (success.get() * 2 <= cluster.getClusterIds().size()) {
-                // 回退日志和lastIndex
-                redisClient.lRemoveLastShard(EPersistenceKeys.LogEntries.key, lastIndex);
-                volatileState.setLastIndex(lastIndex - 1);
-                return (T) Boolean.valueOf(false);
-            }
-            long end = System.currentTimeMillis();
-            // 写入成功了，更新commitIndex和应用到状态机，并且将状态进行持久化到rocks
-            volatileState.setCommitIndex(lastIndex);
-            log.info("日志写入成功 time = {} ", end - start);
-            return (T) Boolean.valueOf(true);
-        } catch (InterruptedException e) {
-            log.error("线程异常中断 message = {}", e.getMessage(), e);
-            return (T) Boolean.valueOf(false);
-        } finally {
-            sendLogLock.unlock();
-        }
+        String[] c = command.split(" ");
+        Command cm = Command.builder()
+                .key(c[1])
+                .value(c[2])
+                .build();
+        Log send = Log.builder()
+                .command(cm)
+                .build();
+        return (T) appendEntriesService.sendLogToFollow(send);
     }
 }

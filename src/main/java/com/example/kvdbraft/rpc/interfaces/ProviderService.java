@@ -2,8 +2,7 @@ package com.example.kvdbraft.rpc.interfaces;
 
 import com.example.kvdbraft.dto.AppendEntriesDTO;
 import com.example.kvdbraft.dto.AppendEntriesResponseDTO;
-import com.example.kvdbraft.dto.ClusterChangeDTO;
-import com.example.kvdbraft.dto.ClusterChangeResponseDTO;
+
 import com.example.kvdbraft.dto.RequestVoteDTO;
 import com.example.kvdbraft.dto.RequestVoteResponseDTO;
 import com.example.kvdbraft.po.Log;
@@ -40,10 +39,5 @@ public interface ProviderService {
      */
     Result<Boolean> write(Log sendLog);
 
-    /**
-     * 集群动态变更
-     * @param clusterChangeDTO
-     * @return
-     */
-    Result<ClusterChangeResponseDTO> changeCluster(ClusterChangeDTO clusterChangeDTO);
+
 }

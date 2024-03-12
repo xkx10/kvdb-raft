@@ -2,8 +2,6 @@ package com.example.kvdbraft.rpc.consumer;
 
 import com.example.kvdbraft.dto.AppendEntriesDTO;
 import com.example.kvdbraft.dto.AppendEntriesResponseDTO;
-import com.example.kvdbraft.dto.ClusterChangeDTO;
-import com.example.kvdbraft.dto.ClusterChangeResponseDTO;
 import com.example.kvdbraft.dto.RequestVoteDTO;
 import com.example.kvdbraft.dto.RequestVoteResponseDTO;
 import com.example.kvdbraft.po.Log;
@@ -70,16 +68,5 @@ public class ConsumerServiceImpl implements ConsumerService {
         }
     }
 
-    @Override
-    public Result<ClusterChangeResponseDTO> sendCluster(String url, ClusterChangeDTO clusterChangeDTO) {
-        try {
-            ProviderService providerService = ReferenceFactory.getOrCreateReference(url);
-            return providerService.changeCluster(clusterChangeDTO);
-        } catch (RpcException rpcException) {
-            return Result.failure("RPC请求失败：" + rpcException.getMessage());
-        } catch (Exception e) {
-            return Result.failure("发生未知错误：" + e.getMessage());
-        }
-    }
 
 }

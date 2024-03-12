@@ -38,4 +38,14 @@ public class Cluster {
         noMyselfClusterIds.remove(id);
         return noMyselfClusterIds;
     }
+    public Set<String> getNoMyselfOldClusterIds(){
+        Set<String> noMyselfClusterIds = new HashSet<>(oldClusterIds);
+        noMyselfClusterIds.remove(id);
+        return noMyselfClusterIds;
+    }
+    public Set<String> getNoMyselfNewClusterIds(){
+        Set<String> noMyselfClusterIds = new HashSet<>(newClusterIds);
+        noMyselfClusterIds.remove(id);
+        return noMyselfClusterIds;
+    }
 }

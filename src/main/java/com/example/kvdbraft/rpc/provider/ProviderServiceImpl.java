@@ -2,15 +2,9 @@ package com.example.kvdbraft.rpc.provider;
 
 import com.example.kvdbraft.dto.AppendEntriesDTO;
 import com.example.kvdbraft.dto.AppendEntriesResponseDTO;
-import com.example.kvdbraft.dto.ClusterChangeDTO;
-import com.example.kvdbraft.dto.ClusterChangeResponseDTO;
 import com.example.kvdbraft.dto.RequestVoteDTO;
 import com.example.kvdbraft.dto.RequestVoteResponseDTO;
-import com.example.kvdbraft.enums.EStatus;
 import com.example.kvdbraft.po.Log;
-import com.example.kvdbraft.po.cache.Cluster;
-import com.example.kvdbraft.po.cache.PersistenceState;
-import com.example.kvdbraft.po.cache.VolatileState;
 import com.example.kvdbraft.rpc.interfaces.ProviderService;
 import com.example.kvdbraft.service.AppendEntriesService;
 import com.example.kvdbraft.service.ClientOperationService;
@@ -20,11 +14,8 @@ import com.example.kvdbraft.service.ElectionService;
 import com.example.kvdbraft.vo.Result;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.dubbo.config.annotation.DubboService;
-import org.springframework.beans.factory.annotation.Autowired;
 
 import javax.annotation.Resource;
-import java.util.List;
-import java.util.concurrent.Future;
 import java.util.concurrent.locks.ReentrantLock;
 
 @DubboService(version = "1.0")
@@ -74,9 +65,6 @@ public class ProviderServiceImpl implements ProviderService {
         return appendEntriesService.sendLogToFollow(sendLog) ? Result.success(null) : Result.failure(null);
     }
 
-    @Override
-    public Result<ClusterChangeResponseDTO> changeCluster(ClusterChangeDTO clusterChangeDTO) {
-        return Result.success(clusterService.handlerClusterChange(clusterChangeDTO));
-    }
+
 
 }

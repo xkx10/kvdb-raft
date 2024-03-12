@@ -28,7 +28,10 @@ public class RedisStateMachineServiceImpl implements StateMachineService {
                 List<Log> applyLogList = logService.getNoApplyLogList();
                 log.info("applyLogList = {}", applyLogList);
                 for (Log log : applyLogList) {
-                    redisClient.set(log.getCommand().getKey(), log.getCommand().getValue());
+                    if(log.getCluster() != null){
+                        // 其中有一些日志是集群变更的日志，这部分日志不需要写到状态机，在同步的时候就已经apply到cluster了
+                        redisClient.set(log.getCommand().getKey(), log.getCommand().getValue());
+                    }
                 }
                 volatileState.setLastApplied(volatileState.getLastApplied() + applyLogList.size());
             }
