@@ -97,7 +97,7 @@ public class AppendEntriesServiceImpl implements AppendEntriesService {
             volatileState.setLastIndex(lastIndex);
             long start = System.currentTimeMillis();
             Boolean sendLogResult;
-            if (cluster.isChangeStatus()) {
+            if (!cluster.isChangeStatus()) {
                 sendLogResult = getSendLogResult(cluster.getClusterIds());
             } else {
                 sendLogResult = getSendLogResult(cluster.getNoMyselfOldClusterIds()) &&

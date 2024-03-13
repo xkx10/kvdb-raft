@@ -21,9 +21,9 @@ public class ShutdownStatusCheckHandler implements SecurityCheckHandler {
     @Override
     public void handler(SecurityCheckContext context) {
         log.info("starting Shutdown身份校验......");
-        if(volatileState.getStatus() != EStatus.Shutdown.status){
-            log.info("Shutdown 身份校验失败 status = {}", volatileState.getStatus());
-            throw new SecurityException("Shutdown 身份校验失败");
+        if(volatileState.getStatus() == EStatus.Shutdown.status){
+            log.info("Shutdown 身份校验成功 status = {}", volatileState.getStatus());
+            throw new SecurityException("Shutdown 身份校验成功，该节点处于下线状态");
         }
     }
 

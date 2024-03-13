@@ -61,16 +61,19 @@ public class ElectionServiceImpl implements ElectionService {
     private RedisClient redisClient;
     @Resource
     ClusterService clusterService;
+
     @Override
     public boolean startElection() {
-        if(volatileState.getStatus().equals(EStatus.Shutdown.status)) return false;
+        if (volatileState.getStatus().equals(EStatus.Shutdown.status)) {
+            return false;
+        }
         log.info("id = {} 发起超时选举投票，可能即将成为新的leader。cluster = {}", cluster.getId(), cluster.getClusterIds());
         // 设置身份为candidate
         volatileState.setStatus(EStatus.Candidate.status);
         // 自己任期 +1
         persistenceState.increaseTerm();
         Boolean electionResult;
-        if (cluster.isChangeStatus()) {
+        if (!cluster.isChangeStatus()) {
             electionResult = doElection(cluster.getClusterIds());
         } else {
             electionResult = doElection(cluster.getNoMyselfOldClusterIds()) &&
@@ -85,7 +88,7 @@ public class ElectionServiceImpl implements ElectionService {
         // 比如： 我现在拉到一半以上的投票了，rpc正在网络中，这个时候有另外一个节点因为网络分区导致一段时间一直在选举，他的任期变的很高，
         //       这个时候他的网络分区好了，他快速的拉到了新一轮的投票，不做判断这个时候会发生脑裂。
         // 下面判断只能较大程度避免脑裂情况，但是即便发生脑裂，任期低的这个leader在集群并没有写入日志的能力，因为大半节点任期要比他高，所以对集群不会有影响
-        if(volatileState.getStatus() == EStatus.Follower.status){
+        if (volatileState.getStatus() == EStatus.Follower.status) {
             log.info("集群中已经有了新的leader id = {}, my id = {} 未能成为leader", volatileState.getLeaderId(), cluster.getId());
             return false;
         }
@@ -99,7 +102,7 @@ public class ElectionServiceImpl implements ElectionService {
         // 安全性校验
         try {
             securityCheckService.voteSecurityCheck(requestVoteDTO);
-        }catch (SecurityException e){
+        } catch (SecurityException e) {
             log.error("安全校验不通过, message = {}", e.getMessage());
             return RequestVoteResponseDTO.builder()
                     .voteGranted(false)
@@ -119,12 +122,13 @@ public class ElectionServiceImpl implements ElectionService {
         log.info("vote success {} -> {}, term = {}", cluster.getId(), requestVoteDTO.getCandidateId(), persistenceState.getCurrentTerm());
         return requestVoteResponseDTO;
     }
-    private boolean doElection(Set<String> clusterIds){
+
+    private boolean doElection(Set<String> clusterIds) {
         //循环除自身外其他节点rpc地址
         RequestVoteDTO requestVoteDTO = new RequestVoteDTO();
         requestVoteDTO.setCandidateId(cluster.getId());
         requestVoteDTO.setTerm(persistenceState.getCurrentTerm());
-        Log lastLog = (Log)redisClient.lGetByShardIndex(EPersistenceKeys.LogEntries.key,volatileState.getLastIndex());
+        Log lastLog = (Log) redisClient.lGetByShardIndex(EPersistenceKeys.LogEntries.key, volatileState.getLastIndex());
         requestVoteDTO.setLastLogIndex(lastLog.getIndex());
         requestVoteDTO.setLastLogTerm(lastLog.getTerm());
         // 开始超时选举拉票
@@ -158,7 +162,7 @@ public class ElectionServiceImpl implements ElectionService {
         try {
             // 等待三秒同步
             boolean await = latch.await(3, TimeUnit.SECONDS);
-            if (!await){
+            if (!await) {
                 log.info("存在一个或多个节点连接超时");
             }
         } catch (InterruptedException e) {
@@ -168,7 +172,7 @@ public class ElectionServiceImpl implements ElectionService {
             log.info("vote fail, id = {} 未能成为leader, 获得投票数 = {}", cluster.getId(), success.get());
             return false;
         }
-        log.info("vote success {} -> {}, term = {}", cluster.getId(), requestVoteDTO.getCandidateId(), persistenceState.getCurrentTerm());
+        log.info("vote success {} -> {}, term = {}，获得投票数 = {}", cluster.getId(), requestVoteDTO.getCandidateId(), persistenceState.getCurrentTerm(), success.get());
         return true;
     }
 
@@ -184,13 +188,11 @@ public class ElectionServiceImpl implements ElectionService {
         leaderVolatileState.initMap();
         // 如果新上任发现处在一阶段提交成功的状态，说明上任提交一阶段后出现异常卸任了
         // 应该继续执行二阶段提交
-        if(cluster.isChangeStatus()){
+        if (cluster.isChangeStatus()) {
             clusterService.twoPhaseCommit();
         }
         // todo 发起空日志写入 用于同步follow节点的日志信息
 
-
     }
-
 
 }
