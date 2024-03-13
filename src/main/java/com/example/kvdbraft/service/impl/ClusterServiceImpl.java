@@ -55,7 +55,9 @@ public class ClusterServiceImpl implements ClusterService {
                 log.info("一阶段提交失败 old = {}, new = {}", cluster.getOldClusterIds(), cluster.getNewClusterIds());
                 return Boolean.valueOf(false);
             }
+            log.info("一阶段提交成功 old = {}, new = {}", cluster.getOldClusterIds(), cluster.getNewClusterIds());
             twoPhaseCommit();
+            log.info("二阶段提交成功 old = {}, new = {}", cluster.getOldClusterIds(), cluster.getNewClusterIds());
             clusterSelfCheckAndShutdown();
             log.info("集群变更成功 old = {}， new={}", cluster.getOldClusterIds(), cluster.getNewClusterIds());
             return Boolean.valueOf(true);
