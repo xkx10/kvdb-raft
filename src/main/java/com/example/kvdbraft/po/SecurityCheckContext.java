@@ -14,4 +14,5 @@ public class SecurityCheckContext {
     Integer rpcLastLogIndex;
     Long rpcLastLogTerm;
     int handlerType;
+    String rpcNodeId;
 }

@@ -20,6 +20,7 @@ public class SecurityCheckServiceImpl implements SecurityCheckService {
                 .rpcLastLogIndex(requestVoteDTO.getLastLogIndex())
                 .rpcLastLogTerm(requestVoteDTO.getLastLogTerm())
                 .handlerType(ESecurityCheckType.Vote.type)
+                .rpcNodeId(requestVoteDTO.getCandidateId())
                 .build();
         securityCheckProcess.handler(context);
     }
@@ -31,6 +32,7 @@ public class SecurityCheckServiceImpl implements SecurityCheckService {
                 .rpcLastLogIndex(appendEntriesDTO.getPrevLogIndex())
                 .rpcLastLogTerm(appendEntriesDTO.getPrevLogTerm())
                 .handlerType(ESecurityCheckType.Heart.type)
+                .rpcNodeId(appendEntriesDTO.getLeaderId())
                 .build();
         securityCheckProcess.handler(context);
     }
@@ -42,6 +44,7 @@ public class SecurityCheckServiceImpl implements SecurityCheckService {
                 .rpcLastLogIndex(appendEntriesDTO.getPrevLogIndex())
                 .rpcLastLogTerm(appendEntriesDTO.getPrevLogTerm())
                 .handlerType(ESecurityCheckType.LogAppend.type)
+                .rpcNodeId(appendEntriesDTO.getLeaderId())
                 .build();
         securityCheckProcess.handler(context);
     }

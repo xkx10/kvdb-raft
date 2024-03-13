@@ -10,4 +10,8 @@ public interface ClusterService {
      */
     Boolean startClusterChange(Set<String> newClusterIds);
 
+    void clusterSelfCheckAndShutdown();
+
+    void twoPhaseCommit();
+
 }

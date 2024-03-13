@@ -9,6 +9,7 @@ import com.example.kvdbraft.po.cache.PersistenceState;
 import com.example.kvdbraft.po.cache.VolatileState;
 import com.example.kvdbraft.rpc.interfaces.ConsumerService;
 import com.example.kvdbraft.service.HeartbeatService;
+import com.example.kvdbraft.service.SecurityCheckService;
 import com.example.kvdbraft.service.TriggerService;
 import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
@@ -46,6 +47,8 @@ public class HeartbeatServiceImpl implements HeartbeatService {
     private ConsumerService consumerService;
     @Resource
     private TriggerService triggerService;
+    @Resource
+    private SecurityCheckService securityCheckService;
 
     @Override
     public List<Future<Boolean>> heartNotJudgeResult() {
@@ -97,8 +100,10 @@ public class HeartbeatServiceImpl implements HeartbeatService {
     @Override
     public AppendEntriesResponseDTO handlerHeart(AppendEntriesDTO heartDTO) {
         long currentTerm = persistenceState.getCurrentTerm();
-        if (heartDTO.getTerm() < currentTerm) {
-            log.info("对方term小于自己");
+        try {
+            securityCheckService.heartSecurityCheck(heartDTO);
+        }catch (SecurityException securityException){
+            log.error("心跳校验不通过 message = {}", securityException.getMessage());
             return AppendEntriesResponseDTO.builder()
                     .term(currentTerm).success(false).build();
         }

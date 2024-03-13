@@ -13,6 +13,7 @@ import com.example.kvdbraft.po.cache.PersistenceState;
 import com.example.kvdbraft.po.cache.VolatileState;
 import com.example.kvdbraft.rpc.interfaces.ConsumerService;
 import com.example.kvdbraft.service.AppendEntriesService;
+import com.example.kvdbraft.service.ClusterService;
 import com.example.kvdbraft.service.LogService;
 import com.example.kvdbraft.service.SecurityCheckService;
 import com.example.kvdbraft.service.TriggerService;
@@ -66,6 +67,8 @@ public class AppendEntriesServiceImpl implements AppendEntriesService {
     private TriggerService triggerService;
     @Resource
     private RedisClient redisClient;
+    @Resource
+    private ClusterService clusterService;
     private int oneRpcTimeOut = 1000;
     private int sumRpcTimeOut = 1500;
 
@@ -229,7 +232,13 @@ public class AppendEntriesServiceImpl implements AppendEntriesService {
             }
             long start = System.currentTimeMillis();
             long currentTerm = persistenceState.getCurrentTerm();
-            securityCheckService.logAppendSecurityCheck(entriesDTO);
+            try {
+                securityCheckService.logAppendSecurityCheck(entriesDTO);
+            }catch (SecurityException securityException){
+                log.error("日志校验不通过 message = {}", securityException.getMessage());
+                return AppendEntriesResponseDTO.builder()
+                        .term(currentTerm).success(false).build();
+            }
             volatileState.setLeaderId(entriesDTO.getLeaderId());
             volatileState.setStatus(EStatus.Follower.status);
             persistenceState.setCurrentTerm(entriesDTO.getTerm());
@@ -251,11 +260,13 @@ public class AppendEntriesServiceImpl implements AppendEntriesService {
             logService.writeLog(entriesDTO.getEntries());
             for (Log entry : entriesDTO.getEntries()) {
                 if(entry.getCluster() != null){
-                    cluster.setChangeStatus(true);
+                    cluster.setChangeStatus(entry.getCluster().isChangeStatus());
                     cluster.setNewClusterIds(entry.getCluster().getNewClusterIds());
                     cluster.setOldClusterIds(entry.getCluster().getOldClusterIds());
+                    cluster.setClusterIds(entry.getCluster().getClusterIds());
                 }
             }
+            clusterService.clusterSelfCheckAndShutdown();
             volatileState.setLastIndex(volatileState.getLastIndex() + entriesDTO.getEntries().size()-1);
             log.info("接受日志成功，time = {}", System.currentTimeMillis() - start);
             return AppendEntriesResponseDTO.builder()
