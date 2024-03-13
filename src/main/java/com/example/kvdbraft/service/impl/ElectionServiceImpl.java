@@ -74,7 +74,7 @@ public class ElectionServiceImpl implements ElectionService {
         persistenceState.increaseTerm();
         Boolean electionResult;
         if (!cluster.isChangeStatus()) {
-            electionResult = doElection(cluster.getClusterIds());
+            electionResult = doElection(cluster.getNoMyselfClusterIds());
         } else {
             electionResult = doElection(cluster.getNoMyselfOldClusterIds()) &&
                     doElection(cluster.getNoMyselfNewClusterIds());

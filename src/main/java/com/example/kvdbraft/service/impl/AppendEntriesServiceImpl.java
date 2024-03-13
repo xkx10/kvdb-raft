@@ -98,7 +98,7 @@ public class AppendEntriesServiceImpl implements AppendEntriesService {
             long start = System.currentTimeMillis();
             Boolean sendLogResult;
             if (!cluster.isChangeStatus()) {
-                sendLogResult = getSendLogResult(cluster.getClusterIds());
+                sendLogResult = getSendLogResult(cluster.getNoMyselfClusterIds());
             } else {
                 sendLogResult = getSendLogResult(cluster.getNoMyselfOldClusterIds()) &&
                         getSendLogResult(cluster.getNoMyselfNewClusterIds());
